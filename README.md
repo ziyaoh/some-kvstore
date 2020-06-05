@@ -27,6 +27,9 @@ Client facing API
     - [x] import old raft implementation
     - [ ] refactor existing code
         - [ ] better error handling
+    - [ ] optimization
+        - [ ] membership change
+        - [ ] log compaction
 - [ ] single replication group
     - [ ] KV store as state machine
         - [ ] implementation
@@ -39,9 +42,5 @@ Client facing API
 - [ ] integration
     - [ ] API and communication between replication groups and shard master
     - [ ] shard transfer between replication groups
-- [ ] additional features & optimization
-    - [ ] persistence
-    - [ ] raft
-        - [ ] membership change
-        - [ ] log compaction
+- [ ] persistence
 - [ ] deployment ready and demo
