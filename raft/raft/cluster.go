@@ -5,7 +5,7 @@ import (
 	"math/rand"
 	"path/filepath"
 
-	"github.com/ziyaoh/some-kvstore/raft/hashmachine"
+	"github.com/ziyaoh/some-kvstore/raft/statemachines"
 )
 
 // CreateLocalCluster creates a new Raft cluster with the given config in the

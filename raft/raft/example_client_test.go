@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ziyaoh/some-kvstore/raft/hashmachine"
+	"github.com/ziyaoh/some-kvstore/raft/statemachines"
 	"golang.org/x/net/context"
 )
 

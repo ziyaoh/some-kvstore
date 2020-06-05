@@ -6,7 +6,7 @@ import (
 
 	"github.com/abiosoft/ishell"
 	"github.com/ziyaoh/some-kvstore/raft/client"
-	"github.com/ziyaoh/some-kvstore/raft/hashmachine"
+	hashmachine "github.com/ziyaoh/some-kvstore/raft/statemachines"
 )
 
 func main() {

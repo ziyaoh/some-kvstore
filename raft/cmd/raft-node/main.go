@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	"github.com/abiosoft/ishell"
-	"github.com/ziyaoh/some-kvstore/raft/hashmachine"
+	"github.com/ziyaoh/some-kvstore/raft/statemachines"
 	"github.com/ziyaoh/some-kvstore/raft/raft"
 )
 
