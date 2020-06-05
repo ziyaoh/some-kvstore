@@ -37,7 +37,7 @@ func TestClientInteraction_Leader(t *testing.T) {
 	initReq := ClientRequest{
 		ClientId:        clientid,
 		SequenceNum:     1,
-		StateMachineCmd: hashmachine.HashChainInit,
+		StateMachineCmd: statemachines.HashChainInit,
 		Data:            []byte("hello"),
 	}
 	clientResult, _ := leader.ClientRequestCaller(context.Background(), &initReq)
@@ -49,7 +49,7 @@ func TestClientInteraction_Leader(t *testing.T) {
 	ClientReq := ClientRequest{
 		ClientId:        clientid,
 		SequenceNum:     2,
-		StateMachineCmd: hashmachine.HashChainAdd,
+		StateMachineCmd: statemachines.HashChainAdd,
 		Data:            []byte{},
 	}
 	clientResult, _ = leader.ClientRequestCaller(context.Background(), &ClientReq)
@@ -66,7 +66,7 @@ func TestClientInteraction_Leader(t *testing.T) {
 	ClientNewReq := ClientRequest{
 		ClientId:        clientid,
 		SequenceNum:     3,
-		StateMachineCmd: hashmachine.HashChainAdd,
+		StateMachineCmd: statemachines.HashChainAdd,
 		Data:            []byte{},
 	}
 
@@ -115,7 +115,7 @@ func TestClientInteraction_Follower(t *testing.T) {
 	req := ClientRequest{
 		ClientId:        1,
 		SequenceNum:     1,
-		StateMachineCmd: hashmachine.HashChainInit,
+		StateMachineCmd: statemachines.HashChainInit,
 		Data:            []byte("hello"),
 	}
 	clientResult, _ := cluster[0].ClientRequestCaller(context.Background(), &req)
@@ -158,7 +158,7 @@ func TestClientInteraction_Candidate(t *testing.T) {
 	req := ClientRequest{
 		ClientId:        1,
 		SequenceNum:     1,
-		StateMachineCmd: hashmachine.HashChainInit,
+		StateMachineCmd: statemachines.HashChainInit,
 		Data:            []byte("hello"),
 	}
 	clientResult, _ := follower.ClientRequestCaller(context.Background(), &req)

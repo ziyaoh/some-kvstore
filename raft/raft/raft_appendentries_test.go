@@ -47,7 +47,7 @@ func TestAppendEntriesFromClient(t *testing.T) {
 	cliReq := ClientRequest{
 		ClientId:        clientid,
 		SequenceNum:     uint64(1),
-		StateMachineCmd: hashmachine.HashChainInit,
+		StateMachineCmd: statemachines.HashChainInit,
 		Data:            data,
 	}
 
@@ -61,7 +61,7 @@ func TestAppendEntriesFromClient(t *testing.T) {
 		cliReq := ClientRequest{
 			ClientId:        clientid,
 			SequenceNum:     uint64(i),
-			StateMachineCmd: hashmachine.HashChainAdd,
+			StateMachineCmd: statemachines.HashChainAdd,
 			Data:            []byte{},
 		}
 
@@ -95,7 +95,7 @@ func TestAppendEntriesFromClient(t *testing.T) {
 		cliReq := ClientRequest{
 			ClientId:        clientid,
 			SequenceNum:     uint64(i),
-			StateMachineCmd: hashmachine.HashChainAdd,
+			StateMachineCmd: statemachines.HashChainAdd,
 			Data:            []byte{},
 		}
 
@@ -122,7 +122,7 @@ func TestAppendEntriesFromClient(t *testing.T) {
 			cliReq := ClientRequest{
 				ClientId:        clientid,
 				SequenceNum:     uint64(i),
-				StateMachineCmd: hashmachine.HashChainAdd,
+				StateMachineCmd: statemachines.HashChainAdd,
 				Data:            []byte{},
 			}
 
@@ -146,7 +146,7 @@ func TestAppendEntriesFromClient(t *testing.T) {
 		cliReq := ClientRequest{
 			ClientId:        clientid,
 			SequenceNum:     uint64(i),
-			StateMachineCmd: hashmachine.HashChainAdd,
+			StateMachineCmd: statemachines.HashChainAdd,
 			Data:            []byte{},
 		}
 

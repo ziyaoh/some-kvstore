@@ -6,7 +6,7 @@ import (
 
 	"github.com/abiosoft/ishell"
 	"github.com/ziyaoh/some-kvstore/raft/client"
-	hashmachine "github.com/ziyaoh/some-kvstore/raft/statemachines"
+	"github.com/ziyaoh/some-kvstore/raft/statemachines"
 )
 
 func main() {
@@ -44,7 +44,7 @@ func main() {
 				return
 			}
 
-			resp, err := client.SendRequest(hashmachine.HashChainInit, []byte(c.Args[0]))
+			resp, err := client.SendRequest(statemachines.HashChainInit, []byte(c.Args[0]))
 			if err != nil {
 				shell.Println(err.Error())
 			}
@@ -56,7 +56,7 @@ func main() {
 		Name: "hash",
 		Help: "perform another round of hashing",
 		Func: func(c *ishell.Context) {
-			resp, err := client.SendRequest(hashmachine.HashChainAdd, []byte{})
+			resp, err := client.SendRequest(statemachines.HashChainAdd, []byte{})
 			if err != nil {
 				shell.Println(err.Error())
 			}

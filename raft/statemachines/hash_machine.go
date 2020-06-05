@@ -1,4 +1,4 @@
-package hashmachine
+package statemachines
 
 import (
 	"crypto/md5"

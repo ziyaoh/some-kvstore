@@ -8,8 +8,8 @@ import (
 	"strconv"
 
 	"github.com/abiosoft/ishell"
-	"github.com/ziyaoh/some-kvstore/raft/statemachines"
 	"github.com/ziyaoh/some-kvstore/raft/raft"
+	"github.com/ziyaoh/some-kvstore/raft/statemachines"
 )
 
 // RaftNode is wrapper for raft.Node
@@ -93,7 +93,7 @@ func main() {
 
 	// Create Raft node
 	fmt.Println("Starting a Raft node...")
-	raftNode, err := raft.CreateNode(listener, remoteNode, config, new(hashmachine.HashMachine), stableStore)
+	raftNode, err := raft.CreateNode(listener, remoteNode, config, new(statemachines.HashMachine), stableStore)
 	node := RaftNode{raftNode}
 
 	if err != nil {

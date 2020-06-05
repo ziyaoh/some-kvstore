@@ -174,7 +174,7 @@ func MockCluster(joinThem bool, config *Config, t *testing.T) (studentRaft *Node
 		// stableStore = NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", rand.Int())))
 		stableStore = nil
 	}
-	studentRaft, err = CreateNode(OpenPort(0), nil, config, new(hashmachine.HashMachine), stableStore)
+	studentRaft, err = CreateNode(OpenPort(0), nil, config, new(statemachines.HashMachine), stableStore)
 	if err != nil {
 		return
 	}

@@ -24,7 +24,7 @@ func CreateLocalCluster(config *Config) ([]*Node, error) {
 	} else {
 		stableStore = NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", rand.Int())))
 	}
-	nodes[0], err = CreateNode(OpenPort(0), nil, config, new(hashmachine.HashMachine), stableStore)
+	nodes[0], err = CreateNode(OpenPort(0), nil, config, new(statemachines.HashMachine), stableStore)
 	if err != nil {
 		Error.Printf("Error creating first node: %v", err)
 		return nodes, err
@@ -37,7 +37,7 @@ func CreateLocalCluster(config *Config) ([]*Node, error) {
 		} else {
 			stableStore = NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", rand.Int())))
 		}
-		nodes[i], err = CreateNode(OpenPort(0), nodes[0].Self, config, new(hashmachine.HashMachine), stableStore)
+		nodes[i], err = CreateNode(OpenPort(0), nodes[0].Self, config, new(statemachines.HashMachine), stableStore)
 		if err != nil {
 			return nil, err
 		}
@@ -61,7 +61,7 @@ func CreateDefinedLocalCluster(config *Config, ports []int) ([]*Node, error) {
 	} else {
 		stableStore = NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", ports[0])))
 	}
-	nodes[0], err = CreateNode(OpenPort(ports[0]), nil, config, new(hashmachine.HashMachine), stableStore)
+	nodes[0], err = CreateNode(OpenPort(ports[0]), nil, config, new(statemachines.HashMachine), stableStore)
 	if err != nil {
 		Error.Printf("Error creating first node: %v", err)
 		return nodes, err
@@ -74,7 +74,7 @@ func CreateDefinedLocalCluster(config *Config, ports []int) ([]*Node, error) {
 		} else {
 			stableStore = NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", ports[i])))
 		}
-		nodes[i], err = CreateNode(OpenPort(ports[i]), nodes[0].Self, config, new(hashmachine.HashMachine), stableStore)
+		nodes[i], err = CreateNode(OpenPort(ports[i]), nodes[0].Self, config, new(statemachines.HashMachine), stableStore)
 		if err != nil {
 			Error.Printf("Error creating %v-th node: %v", i, err)
 			return nil, err
