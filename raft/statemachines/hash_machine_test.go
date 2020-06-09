@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestInitialize(t *testing.T) {
+func TestHashMachineInitialize(t *testing.T) {
 	h := new(HashMachine)
 
 	// Test initializing hash machine

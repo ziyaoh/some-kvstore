@@ -1,7 +1,6 @@
 package raft
 
 import (
-	"bytes"
 	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
@@ -11,8 +10,6 @@ import (
 	"os"
 	"syscall"
 	"time"
-
-	"github.com/hashicorp/go-msgpack/codec"
 )
 
 // LowPort is lowest available port on Brown machines
@@ -61,23 +58,6 @@ func createCacheID(clientID, sequenceNum uint64) string {
 	return fmt.Sprintf("%v-%v", clientID, sequenceNum)
 }
 
-// Decode reverses the encode operation on a byte slice input
-func decodeMsgPack(buf []byte, out interface{}) error {
-	r := bytes.NewBuffer(buf)
-	hd := codec.MsgpackHandle{}
-	dec := codec.NewDecoder(r, &hd)
-	return dec.Decode(out)
-}
-
-// Encode writes an encoded object to a new bytes buffer
-func encodeMsgPack(in interface{}) (*bytes.Buffer, error) {
-	buf := bytes.NewBuffer(nil)
-	hd := codec.MsgpackHandle{}
-	enc := codec.NewEncoder(buf, &hd)
-	err := enc.Encode(in)
-	return buf, err
-}
-
 // Converts bytes to an integer
 func bytesToUint64(b []byte) uint64 {
 	return binary.LittleEndian.Uint64(b)
@@ -90,6 +70,7 @@ func uint64ToBytes(u uint64) []byte {
 	return buf
 }
 
+// SortableUint64Slice is a sortable slice of uint64 type
 // had to define this in order to uint64 slice because golang is freaking stupid, especially before 1.8
 type SortableUint64Slice []uint64
 

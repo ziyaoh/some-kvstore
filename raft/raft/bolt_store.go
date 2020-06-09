@@ -4,6 +4,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/ziyaoh/some-kvstore/raft/util"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -88,7 +89,7 @@ func (store *BoltStore) GetUint64(key []byte) uint64 {
 func (store *BoltStore) StoreLog(log *LogEntry) error {
 	return store.db.Update(func(tx *bolt.Tx) error {
 		b := getBucket(tx, []byte("logs"))
-		buf, err := encodeMsgPack(log)
+		buf, err := util.EncodeMsgPack(log)
 		if err != nil {
 			return err
 		}
@@ -109,7 +110,7 @@ func (store *BoltStore) GetLog(index uint64) *LogEntry {
 		return nil
 	}
 	var log LogEntry
-	err = decodeMsgPack(value, &log)
+	err = util.DecodeMsgPack(value, &log)
 	if err != nil {
 		panic(err)
 	}
@@ -159,7 +160,7 @@ func (store *BoltStore) AllLogs() []*LogEntry {
 	result := []*LogEntry{}
 	for key, value := cursor.First(); key != nil; key, value = cursor.Next() {
 		var log LogEntry
-		decodeMsgPack(value, &log)
+		util.DecodeMsgPack(value, &log)
 		result = append(result, &log)
 	}
 	return result

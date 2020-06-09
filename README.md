@@ -17,23 +17,33 @@ A replication groups manages one or more logical shards of the whole dataset, ut
 
 Client facing API
 - Get
+
+    returns nil when key doesn't exist, not throwing error
+
 - Put
+
+    stores a key-value pair, overwrite old value on putting with existing key
+
 - Append
+
+    append passed in value to the end of existing value, equivalent to Put if key does not previously exist
+
+- Delete
+
+    delete key from store, pass silently if key not exist, not throwing error
 
 ## Persistence
 
 ## TODO
 - [ ] raft
     - [x] import old raft implementation
-    - [ ] refactor existing code
-        - [ ] better error handling
     - [ ] optimization
         - [ ] membership change
         - [ ] log compaction
 - [ ] single replication group
-    - [ ] KV store as state machine
-        - [ ] implementation
-        - [ ] test
+    - [x] KV store as state machine
+        - [x] implementation
+        - [x] test
     - [ ] integrate KV store and raft
     - [ ] integration tests
 - [ ] shard master

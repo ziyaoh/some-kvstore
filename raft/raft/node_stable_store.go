@@ -2,6 +2,8 @@ package raft
 
 import (
 	"errors"
+
+	"github.com/ziyaoh/some-kvstore/raft/util"
 )
 
 // ////////////////////////////////////////////////////////////////////////////////
@@ -57,7 +59,7 @@ func (r *Node) CacheClientReply(cacheID string, reply ClientReply) error {
 		return errors.New("request with the same clientId and seqNum already exists")
 	}
 
-	buf, err := encodeMsgPack(reply)
+	buf, err := util.EncodeMsgPack(reply)
 	if err != nil {
 		return err
 	}
@@ -78,7 +80,7 @@ func (r *Node) GetCachedReply(clientReq ClientRequest) (*ClientReply, bool) {
 
 	if value := r.stableStore.GetBytes(key); value != nil {
 		var reply ClientReply
-		decodeMsgPack(value, &reply)
+		util.DecodeMsgPack(value, &reply)
 		return &reply, true
 	}
 	return nil, false
