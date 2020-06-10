@@ -19,7 +19,7 @@ func init() {
 }
 
 // StartCluster starts all the nodes in the cluster
-func StartCluster(config *raft.Config) []*raft.Node {
+func StartCluster(config *raft.Config) []*raft.RaftNode {
 	nodes, err := raft.CreateLocalCluster(config)
 	if err != nil {
 		panic(err)

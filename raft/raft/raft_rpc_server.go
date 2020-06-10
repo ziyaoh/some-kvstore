@@ -5,7 +5,7 @@ import (
 )
 
 // JoinCaller is called through GRPC to execute a join request.
-func (local *Node) JoinCaller(ctx context.Context, r *RemoteNode) (*Ok, error) {
+func (local *RaftNode) JoinCaller(ctx context.Context, r *RemoteNode) (*Ok, error) {
 	// Check if the network policy prevents incoming requests from the requesting node
 	if local.NetworkPolicy.IsDenied(*r, *local.Self) {
 		return nil, ErrorNetworkPolicyDenied
@@ -16,7 +16,7 @@ func (local *Node) JoinCaller(ctx context.Context, r *RemoteNode) (*Ok, error) {
 }
 
 // StartNodeCaller is called through GRPC to execute a start node request.
-func (local *Node) StartNodeCaller(ctx context.Context, req *StartNodeRequest) (*Ok, error) {
+func (local *RaftNode) StartNodeCaller(ctx context.Context, req *StartNodeRequest) (*Ok, error) {
 	// Check if the network policy prevents incoming requests from the requesting node
 	if local.NetworkPolicy.IsDenied(*req.FromNode, *local.Self) {
 		return nil, ErrorNetworkPolicyDenied
@@ -27,7 +27,7 @@ func (local *Node) StartNodeCaller(ctx context.Context, req *StartNodeRequest) (
 }
 
 // AppendEntriesCaller is called through GRPC to respond to an append entries request.
-func (local *Node) AppendEntriesCaller(ctx context.Context, req *AppendEntriesRequest) (*AppendEntriesReply, error) {
+func (local *RaftNode) AppendEntriesCaller(ctx context.Context, req *AppendEntriesRequest) (*AppendEntriesReply, error) {
 	// Check if the network policy prevents incoming requests from the requesting node
 	if local.NetworkPolicy.IsDenied(*req.Leader, *local.Self) {
 		return nil, ErrorNetworkPolicyDenied
@@ -39,7 +39,7 @@ func (local *Node) AppendEntriesCaller(ctx context.Context, req *AppendEntriesRe
 }
 
 // RequestVoteCaller is called through GRPC to respond to a vote request.
-func (local *Node) RequestVoteCaller(ctx context.Context, req *RequestVoteRequest) (*RequestVoteReply, error) {
+func (local *RaftNode) RequestVoteCaller(ctx context.Context, req *RequestVoteRequest) (*RequestVoteReply, error) {
 	// Check if the network policy prevents incoming requests from the requesting node
 	if local.NetworkPolicy.IsDenied(*req.Candidate, *local.Self) {
 		return nil, ErrorNetworkPolicyDenied
@@ -52,14 +52,14 @@ func (local *Node) RequestVoteCaller(ctx context.Context, req *RequestVoteReques
 
 // RegisterClientCaller is called through GRPC to respond to a client
 // registration request.
-func (local *Node) RegisterClientCaller(ctx context.Context, req *RegisterClientRequest) (*RegisterClientReply, error) {
+func (local *RaftNode) RegisterClientCaller(ctx context.Context, req *RegisterClientRequest) (*RegisterClientReply, error) {
 	reply := local.RegisterClient(req)
 
 	return &reply, nil
 }
 
 // ClientRequestCaller is called through GRPC to respond to a client request.
-func (local *Node) ClientRequestCaller(ctx context.Context, req *ClientRequest) (*ClientReply, error) {
+func (local *RaftNode) ClientRequestCaller(ctx context.Context, req *ClientRequest) (*ClientReply, error) {
 	reply := local.ClientRequest(req)
 
 	return &reply, nil

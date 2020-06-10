@@ -6,7 +6,7 @@ import (
 )
 
 // NetworkPolicy provides a way to explicitly disallow communication from a node
-// to other nodes in the cluster. Each Node has its own network policy that
+// to other nodes in the cluster. Each RaftNode has its own network policy that
 // can block rpc calls to specific nodes, and/or block communication to all
 // other nodes. We encourage you to use this particularly in your test cases.
 type NetworkPolicy struct {

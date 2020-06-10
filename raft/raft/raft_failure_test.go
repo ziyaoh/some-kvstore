@@ -26,7 +26,7 @@ func TestLeaderFailsAndRejoins(t *testing.T) {
 		return
 	}
 
-	followers := make([]*Node, 0)
+	followers := make([]*RaftNode, 0)
 	for _, node := range cluster {
 		if node != leader {
 			followers = append(followers, node)
@@ -44,7 +44,7 @@ func TestLeaderFailsAndRejoins(t *testing.T) {
 		return
 	}
 
-	newLeaders := make([]*Node, 0)
+	newLeaders := make([]*RaftNode, 0)
 
 	for _, follower := range followers {
 		if follower.State == LeaderState {
@@ -138,7 +138,7 @@ func TestFollowerPartitionedAndRejoinWithNewLog(t *testing.T) {
 		return
 	}
 
-	followers := make([]*Node, 0)
+	followers := make([]*RaftNode, 0)
 	for _, node := range cluster {
 		if node != leader {
 			followers = append(followers, node)
@@ -211,7 +211,7 @@ func TestCandidateAndLeaderFallbackAfterPartition(t *testing.T) {
 		return
 	}
 
-	followers := make([]*Node, 0)
+	followers := make([]*RaftNode, 0)
 	for _, node := range cluster {
 		if node != leader {
 			followers = append(followers, node)

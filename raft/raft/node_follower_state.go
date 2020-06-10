@@ -3,7 +3,7 @@ package raft
 import "math"
 
 // doFollower implements the logic for a Raft node in the follower state.
-func (r *Node) doFollower() stateFunction {
+func (r *RaftNode) doFollower() stateFunction {
 	r.Out("Transitioning to FollowerState")
 	r.State = FollowerState
 
@@ -71,7 +71,7 @@ func (r *Node) doFollower() stateFunction {
 // node in a follower, candidate, or leader state. It returns two booleans:
 // - resetTimeout is true if the follower node should reset the election timeout
 // - fallback is true if the node should become a follower again
-func (r *Node) handleAppendEntries(msg AppendEntriesMsg) (resetTimeout, fallback bool) {
+func (r *RaftNode) handleAppendEntries(msg AppendEntriesMsg) (resetTimeout, fallback bool) {
 	// TODO: Students should implement this method
 	request := msg.request
 	reply := msg.reply
@@ -116,7 +116,7 @@ func (r *Node) handleAppendEntries(msg AppendEntriesMsg) (resetTimeout, fallback
 	return true, true
 }
 
-func (r *Node) handleRequestVote(msg RequestVoteMsg) (resetTimeout bool) {
+func (r *RaftNode) handleRequestVote(msg RequestVoteMsg) (resetTimeout bool) {
 	request := msg.request
 	reply := msg.reply
 	// If a server receives a request with a stale term number, it rejects the request (&5.1)

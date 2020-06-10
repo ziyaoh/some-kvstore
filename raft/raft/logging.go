@@ -39,17 +39,17 @@ func SetDebug(enabled bool) {
 }
 
 // Out prints to standard output, prefaced with time and filename
-func (r *Node) Out(formatString string, args ...interface{}) {
+func (r *RaftNode) Out(formatString string, args ...interface{}) {
 	Out.Output(2, fmt.Sprintf("(%v/%v) %v\n", r.Self, r.State, fmt.Sprintf(formatString, args...)))
 }
 
 // Debug prints to standard output if SetDebug was called with enabled=true, prefaced with time and filename
-func (r *Node) Debug(formatString string, args ...interface{}) {
+func (r *RaftNode) Debug(formatString string, args ...interface{}) {
 	Debug.Output(2, fmt.Sprintf("(%v/%v) %v\n", r.Self, r.State, fmt.Sprintf(formatString, args...)))
 }
 
 // Error prints to standard error, prefaced with "ERROR: ", time, and filename
-func (r *Node) Error(formatString string, args ...interface{}) {
+func (r *RaftNode) Error(formatString string, args ...interface{}) {
 	color.Set(color.FgRed)
 	Error.Output(2, fmt.Sprintf("(%v/%v) %v\n", r.Self, r.State, fmt.Sprintf(formatString, args...)))
 	color.Unset()
@@ -70,12 +70,12 @@ func (s NodeState) String() string {
 	}
 }
 
-func (r *Node) String() string {
-	return fmt.Sprintf("Node{Self: %v, State: %v}", r.Self, r.State)
+func (r *RaftNode) String() string {
+	return fmt.Sprintf("RaftNode{Self: %v, State: %v}", r.Self, r.State)
 }
 
 // FormatState returns a string representation of the Raft node's state
-func (r *Node) FormatState() string {
+func (r *RaftNode) FormatState() string {
 	var buffer bytes.Buffer
 	buffer.WriteString(fmt.Sprintf("Current node (%v): state:\n", r.Self))
 
@@ -103,9 +103,9 @@ func (r *Node) FormatState() string {
 }
 
 // FormatLogCache returns a string representation of the Raft node's log cache
-func (r *Node) FormatLogCache() string {
+func (r *RaftNode) FormatLogCache() string {
 	var buffer bytes.Buffer
-	buffer.WriteString(fmt.Sprintf("Node %v LogCache:\n", r.Self))
+	buffer.WriteString(fmt.Sprintf("RaftNode %v LogCache:\n", r.Self))
 
 	for i := uint64(0); i <= r.LastLogIndex(); i++ {
 		log := r.GetLog(i)
@@ -118,7 +118,7 @@ func (r *Node) FormatLogCache() string {
 }
 
 // FormatNodeListIds returns a string representation of IDs the list of nodes in the cluster
-func (r *Node) FormatNodeListIds(ctx string) string {
+func (r *RaftNode) FormatNodeListIds(ctx string) string {
 	var buffer bytes.Buffer
 	buffer.WriteString(fmt.Sprintf("%v (%v) r.NodeList = [", ctx, r.Self))
 

@@ -12,9 +12,9 @@ import (
 	"github.com/ziyaoh/some-kvstore/raft/statemachines"
 )
 
-// RaftNode is wrapper for raft.Node
+// RaftNode is wrapper for raft.RaftNode
 type RaftNode struct {
-	*raft.Node
+	*raft.RaftNode
 }
 
 func (node RaftNode) findNode(id string) *raft.RemoteNode {
