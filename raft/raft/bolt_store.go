@@ -89,11 +89,11 @@ func (store *BoltStore) GetUint64(key []byte) uint64 {
 func (store *BoltStore) StoreLog(log *LogEntry) error {
 	return store.db.Update(func(tx *bolt.Tx) error {
 		b := getBucket(tx, []byte("logs"))
-		buf, err := util.EncodeMsgPack(log)
+		bytes, err := util.EncodeMsgPack(log)
 		if err != nil {
 			return err
 		}
-		return b.Put(uint64ToBytes(log.Index), buf.Bytes())
+		return b.Put(uint64ToBytes(log.Index), bytes)
 	})
 }
 

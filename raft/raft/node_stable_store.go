@@ -59,11 +59,11 @@ func (r *Node) CacheClientReply(cacheID string, reply ClientReply) error {
 		return errors.New("request with the same clientId and seqNum already exists")
 	}
 
-	buf, err := util.EncodeMsgPack(reply)
+	bytes, err := util.EncodeMsgPack(reply)
 	if err != nil {
 		return err
 	}
-	err = r.stableStore.SetBytes(key, buf.Bytes())
+	err = r.stableStore.SetBytes(key, bytes)
 	if err != nil {
 		r.Error("Unable to flush new client request to disk: %v", err)
 		panic(err)
