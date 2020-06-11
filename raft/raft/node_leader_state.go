@@ -6,7 +6,7 @@ import (
 )
 
 // doLeader implements the logic for a Raft node in the leader state.
-func (r *RaftNode) doLeader() stateFunction {
+func (r *Node) doLeader() stateFunction {
 	r.Out("Transitioning to LeaderState")
 	r.State = LeaderState
 
@@ -93,7 +93,7 @@ const (
 	HeartbeatFallback                 = "fallback"
 )
 
-func (r *RaftNode) sendHeartbeat(peer *RemoteNode, msg *AppendEntriesRequest, resultChan chan HeartbeatResult) {
+func (r *Node) sendHeartbeat(peer *RemoteNode, msg *AppendEntriesRequest, resultChan chan HeartbeatResult) {
 	reply, err := peer.AppendEntriesRPC(r, msg)
 
 	if err == nil {
@@ -147,7 +147,7 @@ func (r *RaftNode) sendHeartbeat(peer *RemoteNode, msg *AppendEntriesRequest, re
 // update them, and, if an index has made it to a quorum of nodes, commit
 // up to that index. Once committed to that index, the replicated state
 // machine should be given the new log entries via processLogEntry.
-func (r *RaftNode) sendHeartbeats() (fallback, sentToMajority bool) {
+func (r *Node) sendHeartbeats() (fallback, sentToMajority bool) {
 	// TODO: Students should implement this method
 	r.leaderMutex.Lock()
 	leaderCommit := r.commitIndex
@@ -194,7 +194,7 @@ func (r *RaftNode) sendHeartbeats() (fallback, sentToMajority bool) {
 	return false, successCount >= total/2
 }
 
-func (r *RaftNode) handleClientRequest(request *ClientRequest, replyChannel chan ClientReply) {
+func (r *Node) handleClientRequest(request *ClientRequest, replyChannel chan ClientReply) {
 	cacheId := createCacheID(request.ClientId, request.SequenceNum)
 	r.requestsMutex.Lock()
 	oldChannel, exist := r.requestsByCacheID[cacheId]
@@ -227,7 +227,7 @@ func (r *RaftNode) handleClientRequest(request *ClientRequest, replyChannel chan
 	r.leaderMutex.Unlock()
 }
 
-func (r *RaftNode) handleRegisterClient(reply chan RegisterClientReply, fallbackChan chan bool) {
+func (r *Node) handleRegisterClient(reply chan RegisterClientReply, fallbackChan chan bool) {
 	r.leaderMutex.Lock()
 	logEntry := LogEntry{
 		Index:  r.LastLogIndex() + 1,
@@ -269,7 +269,7 @@ func (r *RaftNode) handleRegisterClient(reply chan RegisterClientReply, fallback
 // called once a log entry has been replicated to a majority and committed by
 // the leader. Once the entry has been applied, the leader responds to the client
 // with the result, and also caches the response.
-func (r *RaftNode) processLogEntry(entry LogEntry) ClientReply {
+func (r *Node) processLogEntry(entry LogEntry) ClientReply {
 	r.Out("Processing log entry: %v", entry)
 
 	status := ClientStatus_OK

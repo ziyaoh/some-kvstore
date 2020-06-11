@@ -24,7 +24,7 @@ func TestPartition(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	followers := make([]*RaftNode, 0)
+	followers := make([]*Node, 0)
 	for _, node := range cluster {
 		if node != leader {
 			followers = append(followers, node)

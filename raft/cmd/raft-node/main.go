@@ -12,12 +12,12 @@ import (
 	"github.com/ziyaoh/some-kvstore/raft/statemachines"
 )
 
-// RaftNode is wrapper for raft.RaftNode
-type RaftNode struct {
-	*raft.RaftNode
+// Node is wrapper for raft.Node
+type Node struct {
+	*raft.Node
 }
 
-func (node RaftNode) findNode(id string) *raft.RemoteNode {
+func (node Node) findNode(id string) *raft.RemoteNode {
 	nodeList := node.Peers
 
 	for _, remoteNode := range nodeList {
@@ -94,7 +94,7 @@ func main() {
 	// Create Raft node
 	fmt.Println("Starting a Raft node...")
 	raftNode, err := raft.CreateNode(listener, remoteNode, config, new(statemachines.HashMachine), stableStore)
-	node := RaftNode{raftNode}
+	node := Node{raftNode}
 
 	if err != nil {
 		fmt.Printf("Error starting Raft node: %v\n", err)

@@ -1,7 +1,7 @@
 package raft
 
 // doCandidate implements the logic for a Raft node in the candidate state.
-func (r *RaftNode) doCandidate() stateFunction {
+func (r *Node) doCandidate() stateFunction {
 	r.Out("Transitioning to CandidateState")
 	r.State = CandidateState
 	// TODO: Students should implement this method
@@ -75,7 +75,7 @@ const (
 	RequestVoteFallback                   = "fallback"
 )
 
-func (r *RaftNode) requestPeerVote(peer *RemoteNode, msg *RequestVoteRequest, resultChan chan RequestVoteResult) {
+func (r *Node) requestPeerVote(peer *RemoteNode, msg *RequestVoteRequest, resultChan chan RequestVoteResult) {
 	reply, err := peer.RequestVoteRPC(r, msg)
 
 	if err != nil {
@@ -97,7 +97,7 @@ func (r *RaftNode) requestPeerVote(peer *RemoteNode, msg *RequestVoteRequest, re
 // requestVotes is called to request votes from all other nodes. It takes in a
 // channel on which the result of the vote should be sent over: true for a
 // successful election, false otherwise.
-func (r *RaftNode) requestVotes(electionResults chan bool, fallback chan bool, currTerm uint64) {
+func (r *Node) requestVotes(electionResults chan bool, fallback chan bool, currTerm uint64) {
 	// TODO: Students should implement this method
 	// Votes received
 	remaining := 0
@@ -145,7 +145,7 @@ func (r *RaftNode) requestVotes(electionResults chan bool, fallback chan bool, c
 // handleCompetingRequestVote handles an incoming vote request when the current
 // node is in the candidate or leader state. It returns true if the caller
 // should fall back to the follower state, false otherwise.
-func (r *RaftNode) handleCompetingRequestVote(msg RequestVoteMsg) (fallback bool) {
+func (r *Node) handleCompetingRequestVote(msg RequestVoteMsg) (fallback bool) {
 	// TODO: Students should implement this method
 	request := msg.request
 	reply := msg.reply

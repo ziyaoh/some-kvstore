@@ -83,7 +83,7 @@ func (remote *RemoteNode) connCheck(err error) error {
 }
 
 // JoinRPC tells the given remote node that we (a new Raft node) want to join the cluster
-func (remote *RemoteNode) JoinRPC(local *RaftNode) error {
+func (remote *RemoteNode) JoinRPC(local *Node) error {
 	// Get a client connection for the remote node
 	if local.NetworkPolicy.IsDenied(*local.Self, *remote) {
 		return ErrorNetworkPolicyDenied
@@ -106,7 +106,7 @@ func (remote *RemoteNode) JoinRPC(local *RaftNode) error {
 
 // StartNodeRPC tells the remote node to start execution with the given list
 // of RemoteNodes as the list of all the nodes in the cluster.
-func (remote *RemoteNode) StartNodeRPC(local *RaftNode, nodeList []*RemoteNode) error {
+func (remote *RemoteNode) StartNodeRPC(local *Node, nodeList []*RemoteNode) error {
 	if local.NetworkPolicy.IsDenied(*local.Self, *remote) {
 		return ErrorNetworkPolicyDenied
 	}
@@ -127,9 +127,9 @@ func (remote *RemoteNode) StartNodeRPC(local *RaftNode, nodeList []*RemoteNode) 
 }
 
 // AppendEntriesRPC is called by a leader in the cluster attempting to append
-// entries to one of its followers. Be sure to pass in a pointer to the RaftNode
+// entries to one of its followers. Be sure to pass in a pointer to the Node
 // making the request.
-func (remote *RemoteNode) AppendEntriesRPC(local *RaftNode, request *AppendEntriesRequest) (*AppendEntriesReply, error) {
+func (remote *RemoteNode) AppendEntriesRPC(local *Node, request *AppendEntriesRequest) (*AppendEntriesReply, error) {
 	if local.NetworkPolicy.IsDenied(*local.Self, *remote) {
 		return nil, ErrorNetworkPolicyDenied
 	}
@@ -145,8 +145,8 @@ func (remote *RemoteNode) AppendEntriesRPC(local *RaftNode, request *AppendEntri
 
 // RequestVoteRPC asks the given remote node for a vote, using the provided
 // RequestVoteRequest struct as the request. Note that calling nodes should
-// pass in a pointer to their own RaftNode struct.
-func (remote *RemoteNode) RequestVoteRPC(local *RaftNode, request *RequestVoteRequest) (*RequestVoteReply, error) {
+// pass in a pointer to their own Node struct.
+func (remote *RemoteNode) RequestVoteRPC(local *Node, request *RequestVoteRequest) (*RequestVoteReply, error) {
 	if local.NetworkPolicy.IsDenied(*local.Self, *remote) {
 		return nil, ErrorNetworkPolicyDenied
 	}

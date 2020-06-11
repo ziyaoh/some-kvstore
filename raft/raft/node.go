@@ -23,8 +23,8 @@ const (
 	ExitState
 )
 
-// RaftNode defines an individual Raft node.
-type RaftNode struct {
+// Node defines an individual Raft node.
+type Node struct {
 	State     NodeState
 	Self      *RemoteNode
 	Leader    *RemoteNode
@@ -66,8 +66,8 @@ type RaftNode struct {
 // as well as implementations of various interfaces that are required.
 // If we have any old state, such as snapshots, logs, Peers, etc, all those will be restored when creating the Raft node.
 // Use port=0 for auto selection
-func CreateNode(listener net.Listener, connect *RemoteNode, config *Config, stateMachine StateMachine, stableStore StableStore) (*RaftNode, error) {
-	r := new(RaftNode)
+func CreateNode(listener net.Listener, connect *RemoteNode, config *Config, stateMachine StateMachine, stableStore StableStore) (*Node, error) {
+	r := new(Node)
 
 	// Set remote self based on listener address
 	r.Self = &RemoteNode{
@@ -139,7 +139,7 @@ func CreateNode(listener net.Listener, connect *RemoteNode, config *Config, stat
 // another state, the function returns the next function to execute.
 type stateFunction func() stateFunction
 
-func (r *RaftNode) run() {
+func (r *Node) run() {
 	var curr stateFunction = r.doFollower
 	for curr != nil {
 		curr = curr()
@@ -149,7 +149,7 @@ func (r *RaftNode) run() {
 // startCluster puts the current Raft node on hold until the required number of
 // Peers join the cluster. Once they do, it starts the Peers via a StartNodeRPC
 // call, and then starts the current node in the follower state.
-func (r *RaftNode) startCluster() {
+func (r *Node) startCluster() {
 	r.nodeMutex.Lock()
 	r.Peers = append(r.Peers, r.Self)
 	r.nodeMutex.Unlock()
@@ -175,7 +175,7 @@ func (r *RaftNode) startCluster() {
 }
 
 // Join adds the fromNode to the current Raft cluster.
-func (r *RaftNode) Join(fromNode *RemoteNode) error {
+func (r *Node) Join(fromNode *RemoteNode) error {
 	r.nodeMutex.Lock()
 	defer r.nodeMutex.Unlock()
 
@@ -196,7 +196,7 @@ func (r *RaftNode) Join(fromNode *RemoteNode) error {
 }
 
 // StartNode is invoked on us by a remote node, and starts the current node in follower state.
-func (r *RaftNode) StartNode(req *StartNodeRequest) error {
+func (r *Node) StartNode(req *StartNodeRequest) error {
 	r.nodeMutex.Lock()
 	defer r.nodeMutex.Unlock()
 
@@ -217,7 +217,7 @@ type AppendEntriesMsg struct {
 
 // AppendEntries is invoked on us by a remote node, and sends the request and a
 // reply channel to the stateFunction.
-func (r *RaftNode) AppendEntries(req *AppendEntriesRequest) AppendEntriesReply {
+func (r *Node) AppendEntries(req *AppendEntriesRequest) AppendEntriesReply {
 	// r.Debug("AppendEntries request received")
 	reply := make(chan AppendEntriesReply)
 	r.appendEntries <- AppendEntriesMsg{req, reply}
@@ -232,7 +232,7 @@ type RequestVoteMsg struct {
 
 // RequestVote is invoked on us by a remote node, and sends the request and a
 // reply channel to the stateFunction.
-func (r *RaftNode) RequestVote(req *RequestVoteRequest) RequestVoteReply {
+func (r *Node) RequestVote(req *RequestVoteRequest) RequestVoteReply {
 	r.Debug("RequestVote request received")
 	reply := make(chan RequestVoteReply)
 	r.requestVote <- RequestVoteMsg{req, reply}
@@ -248,7 +248,7 @@ type RegisterClientMsg struct {
 // RegisterClient is invoked on us by a client, and sends the request and a
 // reply channel to the stateFunction. If the cluster hasn't started yet, it
 // returns the corresponding RegisterClientReply.
-func (r *RaftNode) RegisterClient(req *RegisterClientRequest) RegisterClientReply {
+func (r *Node) RegisterClient(req *RegisterClientRequest) RegisterClientReply {
 	r.Debug("RegisterClientRequest received")
 	reply := make(chan RegisterClientReply)
 
@@ -275,7 +275,7 @@ type ClientRequestMsg struct {
 // ClientRequest is invoked on us by a client, and sends the request and a
 // reply channel to the stateFunction. If the cluster hasn't started yet, it
 // returns the corresponding ClientReply.
-func (r *RaftNode) ClientRequest(req *ClientRequest) ClientReply {
+func (r *Node) ClientRequest(req *ClientRequest) ClientReply {
 	r.Debug("ClientRequest request received")
 
 	// If cluster hasn't started yet, return
@@ -301,14 +301,14 @@ func (r *RaftNode) ClientRequest(req *ClientRequest) ClientReply {
 }
 
 // Exit abruptly shuts down the current node's process, including the GRPC server.
-func (r *RaftNode) Exit() {
+func (r *Node) Exit() {
 	r.Out("Abruptly shutting down node!")
 	os.Exit(0)
 }
 
 // GracefulExit sends a signal down the gracefulExit channel, in order to enable
 // a safe exit from the cluster, handled by the current stateFunction.
-func (r *RaftNode) GracefulExit() {
+func (r *Node) GracefulExit() {
 	r.NetworkPolicy.PauseWorld(true)
 	r.Out("Gracefully shutting down node!")
 

@@ -24,7 +24,7 @@ func TestAppendEntriesFromClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	followers := make([]*RaftNode, 0)
+	followers := make([]*Node, 0)
 	for _, node := range cluster {
 		if node != leader {
 			followers = append(followers, node)
@@ -135,7 +135,7 @@ func TestAppendEntriesFromClient(t *testing.T) {
 	}()
 
 	time.Sleep(5 * time.Second)
-	var newLeader *RaftNode
+	var newLeader *Node
 	for _, node := range followers {
 		if node.State == LeaderState {
 			newLeader = node
@@ -180,7 +180,7 @@ func TestAppendEntriesTerm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	followers := make([]*RaftNode, 0)
+	followers := make([]*Node, 0)
 	for _, node := range cluster {
 		if node != leader {
 			followers = append(followers, node)
@@ -224,7 +224,7 @@ func TestAppendEntriesLogIndex(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	followers := make([]*RaftNode, 0)
+	followers := make([]*Node, 0)
 	for _, node := range cluster {
 		if node != leader {
 			followers = append(followers, node)
@@ -268,7 +268,7 @@ func TestAppendEntriesLogTerm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	followers := make([]*RaftNode, 0)
+	followers := make([]*Node, 0)
 	for _, node := range cluster {
 		if node != leader {
 			followers = append(followers, node)

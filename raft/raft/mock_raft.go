@@ -111,7 +111,7 @@ type MockRaft struct {
 
 	RemoteSelf        *RemoteNode
 	server            *grpc.Server
-	StudentRaft       *RaftNode
+	StudentRaft       *Node
 	studentRaftClient RaftRPCClient
 
 	receivedReqs  []*AppendEntriesRequest
@@ -156,7 +156,7 @@ func (m *MockRaft) JoinCluster() (err error) {
 }
 
 // Create a cluster from one student raft and ClusterSize-1 mock rafts, connect the mock rafts to the student one.
-func MockCluster(joinThem bool, config *Config, t *testing.T) (studentRaft *RaftNode, mockRafts []*MockRaft, err error) {
+func MockCluster(joinThem bool, config *Config, t *testing.T) (studentRaft *Node, mockRafts []*MockRaft, err error) {
 	if config == nil {
 		config = DefaultConfig()
 	}
@@ -256,7 +256,7 @@ func addrInUse(err error) bool {
 }
 
 // Create a new mockraft with the default config
-func NewDefaultMockRaft(studentRaft *RaftNode) (m *MockRaft, err error) {
+func NewDefaultMockRaft(studentRaft *Node) (m *MockRaft, err error) {
 	m = &MockRaft{
 		Join:           DefaultJoinCaller,
 		StartNode:      DefaultStartNodeCaller,
@@ -323,9 +323,9 @@ func (m *MockRaft) addRequest(req *AppendEntriesRequest) {
 }
 
 // Stops all the grpc servers, removes raftlogs, and closes client connections
-func cleanupMockCluster(student *RaftNode, mockRafts []*MockRaft) {
+func cleanupMockCluster(student *Node, mockRafts []*MockRaft) {
 	student.server.Stop()
-	go func(student *RaftNode) {
+	go func(student *Node) {
 		student.GracefulExit()
 		student.RemoveLogs()
 	}(student)
