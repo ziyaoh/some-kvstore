@@ -5,7 +5,7 @@ import (
 	"time"
 
 	errHelp "github.com/pkg/errors"
-	"github.com/ziyaoh/some-kvstore/raft/util"
+	"github.com/ziyaoh/some-kvstore/util"
 	bolt "go.etcd.io/bbolt"
 )
 

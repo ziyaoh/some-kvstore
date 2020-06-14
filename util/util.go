@@ -2,6 +2,8 @@ package util
 
 import (
 	"bytes"
+	"crypto/sha1"
+	"math/big"
 
 	"github.com/hashicorp/go-msgpack/codec"
 )
@@ -21,4 +23,14 @@ func EncodeMsgPack(in interface{}) ([]byte, error) {
 	enc := codec.NewEncoder(buf, &hd)
 	err := enc.Encode(in)
 	return buf.Bytes(), err
+}
+
+// AddrToID converts a network address to a Raft node ID of specified length.
+func AddrToID(addr string, length int) string {
+	h := sha1.New()
+	h.Write([]byte(addr))
+	v := h.Sum(nil)
+	keyInt := big.Int{}
+	keyInt.SetBytes(v[:length])
+	return keyInt.String()
 }

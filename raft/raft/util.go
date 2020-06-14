@@ -1,10 +1,8 @@
 package raft
 
 import (
-	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
-	"math/big"
 	"math/rand"
 	"net"
 	"os"
@@ -32,16 +30,6 @@ func OpenPort(port int) net.Listener {
 		panic(err)
 	}
 	return listener
-}
-
-// AddrToID converts a network address to a Raft node ID of specified length.
-func AddrToID(addr string, length int) string {
-	h := sha1.New()
-	h.Write([]byte(addr))
-	v := h.Sum(nil)
-	keyInt := big.Int{}
-	keyInt.SetBytes(v[:length])
-	return keyInt.String()
 }
 
 // randomTimeout uses time.After to create a timeout between minTimeout and 2x that.

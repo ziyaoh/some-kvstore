@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/ziyaoh/some-kvstore/raft/util"
+	"github.com/ziyaoh/some-kvstore/util"
 )
 
 func TestKVStoreMachineInitialize(t *testing.T) {

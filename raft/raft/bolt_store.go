@@ -4,7 +4,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/ziyaoh/some-kvstore/raft/util"
+	"github.com/ziyaoh/some-kvstore/rpc"
+	"github.com/ziyaoh/some-kvstore/util"
 	bolt "go.etcd.io/bbolt"
 )
 
@@ -85,8 +86,8 @@ func (store *BoltStore) GetUint64(key []byte) uint64 {
 	return bytesToUint64(value)
 }
 
-// StoreLog grabs the next log index and stores a LogEntry into Bolt
-func (store *BoltStore) StoreLog(log *LogEntry) error {
+// StoreLog grabs the next log index and stores a rpc.LogEntry into Bolt
+func (store *BoltStore) StoreLog(log *rpc.LogEntry) error {
 	return store.db.Update(func(tx *bolt.Tx) error {
 		b := getBucket(tx, []byte("logs"))
 		bytes, err := util.EncodeMsgPack(log)
@@ -97,8 +98,8 @@ func (store *BoltStore) StoreLog(log *LogEntry) error {
 	})
 }
 
-// GetLog retrieves a LogEntry at a specific log index from Bolt
-func (store *BoltStore) GetLog(index uint64) *LogEntry {
+// GetLog retrieves a rpc.LogEntry at a specific log index from Bolt
+func (store *BoltStore) GetLog(index uint64) *rpc.LogEntry {
 	tx, err := store.db.Begin(false)
 	if err != nil {
 		panic(err)
@@ -109,7 +110,7 @@ func (store *BoltStore) GetLog(index uint64) *LogEntry {
 	if value == nil {
 		return nil
 	}
-	var log LogEntry
+	var log rpc.LogEntry
 	err = util.DecodeMsgPack(value, &log)
 	if err != nil {
 		panic(err)
@@ -149,7 +150,7 @@ func (store *BoltStore) TruncateLog(index uint64) error {
 }
 
 // AllLogs returns all logs in ascending order. Used for testing purposes.
-func (store *BoltStore) AllLogs() []*LogEntry {
+func (store *BoltStore) AllLogs() []*rpc.LogEntry {
 	tx, err := store.db.Begin(false)
 	if err != nil {
 		panic(err)
@@ -157,9 +158,9 @@ func (store *BoltStore) AllLogs() []*LogEntry {
 	defer tx.Rollback()
 	b := getBucket(tx, []byte("logs"))
 	cursor := b.Cursor()
-	result := []*LogEntry{}
+	result := []*rpc.LogEntry{}
 	for key, value := cursor.First(); key != nil; key, value = cursor.Next() {
-		var log LogEntry
+		var log rpc.LogEntry
 		util.DecodeMsgPack(value, &log)
 		result = append(result, &log)
 	}

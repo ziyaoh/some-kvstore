@@ -1,6 +1,10 @@
 package raft
 
-import "math"
+import (
+	"math"
+
+	"github.com/ziyaoh/some-kvstore/rpc"
+)
 
 // doFollower implements the logic for a Raft node in the follower state.
 func (r *Node) doFollower() stateFunction {
@@ -11,13 +15,13 @@ func (r *Node) doFollower() stateFunction {
 	// Hint: perform any initial work, and then consider what a node in the
 	// follower state should do when it receives an incoming message on every
 	// possible channel.
-	clientReply := ClientReply{
+	clientReply := rpc.ClientReply{
 		Status:     1,
 		Response:   nil,
 		LeaderHint: r.Leader,
 	}
 
-	registerReply := RegisterClientReply{
+	registerReply := rpc.RegisterClientReply{
 		Status:     1,
 		ClientId:   0,
 		LeaderHint: r.Leader,
@@ -32,7 +36,7 @@ func (r *Node) doFollower() stateFunction {
 	for _, replyToClient := range r.requestsByCacheID {
 		replyToClient <- clientReply
 	}
-	r.requestsByCacheID = make(map[string]chan ClientReply)
+	r.requestsByCacheID = make(map[string]chan rpc.ClientReply)
 	r.requestsMutex.Unlock()
 
 	timeout := randomTimeout(r.config.ElectionTimeout)
@@ -44,10 +48,11 @@ func (r *Node) doFollower() stateFunction {
 				return nil
 			}
 		case clientMsg := <-r.clientRequest:
-			clientMsg.reply <- clientReply
+			clientMsg.Reply <- clientReply
 
-		case registerMsg := <-r.registerClient:
-			registerMsg.reply <- registerReply
+		// TODO: move to shard master
+		// case registerMsg := <-r.registerClient:
+		// 	registerMsg.reply <- registerReply
 
 		case voteMsg := <-r.requestVote:
 			if r.handleRequestVote(voteMsg) {
@@ -77,7 +82,7 @@ func (r *Node) handleAppendEntries(msg AppendEntriesMsg) (resetTimeout, fallback
 	reply := msg.reply
 	// If a server receives a request with a stale term number, it rejects the request (&5.1)
 	if r.GetCurrentTerm() > request.GetTerm() {
-		reply <- AppendEntriesReply{Term: r.GetCurrentTerm(), Success: false}
+		reply <- rpc.AppendEntriesReply{Term: r.GetCurrentTerm(), Success: false}
 		return false, false
 	}
 
@@ -88,7 +93,7 @@ func (r *Node) handleAppendEntries(msg AppendEntriesMsg) (resetTimeout, fallback
 	}
 	// Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm (§5.3)
 	if request.PrevLogIndex > 0 && (r.GetLog(request.PrevLogIndex) == nil || r.GetLog(request.PrevLogIndex).GetTermId() != request.GetPrevLogTerm()) {
-		reply <- AppendEntriesReply{Term: r.GetCurrentTerm(), Success: false}
+		reply <- rpc.AppendEntriesReply{Term: r.GetCurrentTerm(), Success: false}
 		return true, true
 	}
 	// Found a log entry whose term and index are matched with prevLogIndex and preLogTerm
@@ -112,7 +117,7 @@ func (r *Node) handleAppendEntries(msg AppendEntriesMsg) (resetTimeout, fallback
 			r.processLogEntry(*r.GetLog(r.lastApplied))
 		}
 	}
-	reply <- AppendEntriesReply{Term: r.GetCurrentTerm(), Success: true}
+	reply <- rpc.AppendEntriesReply{Term: r.GetCurrentTerm(), Success: true}
 	return true, true
 }
 
@@ -121,7 +126,7 @@ func (r *Node) handleRequestVote(msg RequestVoteMsg) (resetTimeout bool) {
 	reply := msg.reply
 	// If a server receives a request with a stale term number, it rejects the request (&5.1)
 	if r.GetCurrentTerm() > request.GetTerm() {
-		reply <- RequestVoteReply{Term: r.GetCurrentTerm(), VoteGranted: false}
+		reply <- rpc.RequestVoteReply{Term: r.GetCurrentTerm(), VoteGranted: false}
 		return false
 	} else if r.GetCurrentTerm() < request.GetTerm() {
 		r.setCurrentTerm(request.GetTerm())
@@ -134,9 +139,9 @@ func (r *Node) handleRequestVote(msg RequestVoteMsg) (resetTimeout bool) {
 		(lastTerm < request.GetLastLogTerm() ||
 			(lastTerm == request.GetLastLogTerm() && r.LastLogIndex() <= request.GetLastLogIndex())) {
 		r.setVotedFor(request.GetCandidate().GetId())
-		reply <- RequestVoteReply{Term: r.GetCurrentTerm(), VoteGranted: true}
+		reply <- rpc.RequestVoteReply{Term: r.GetCurrentTerm(), VoteGranted: true}
 		return true
 	}
-	reply <- RequestVoteReply{Term: r.GetCurrentTerm(), VoteGranted: false}
+	reply <- rpc.RequestVoteReply{Term: r.GetCurrentTerm(), VoteGranted: false}
 	return false
 }

@@ -3,7 +3,8 @@ package raft
 import (
 	"errors"
 
-	"github.com/ziyaoh/some-kvstore/raft/util"
+	"github.com/ziyaoh/some-kvstore/rpc"
+	"github.com/ziyaoh/some-kvstore/util"
 )
 
 // ////////////////////////////////////////////////////////////////////////////////
@@ -12,10 +13,10 @@ import (
 
 // initStore stores zero-index log
 func (r *Node) initStableStore() {
-	r.StoreLog(&LogEntry{
+	r.StoreLog(&rpc.LogEntry{
 		Index:  0,
 		TermId: 0,
-		Type:   CommandType_NOOP,
+		Type:   rpc.CommandType_NOOP,
 		Data:   []byte{},
 	})
 }
@@ -53,7 +54,7 @@ func (r *Node) GetVotedFor() string {
 }
 
 // CacheClientReply caches the given client response with the provided cache ID.
-func (r *Node) CacheClientReply(cacheID string, reply ClientReply) error {
+func (r *Node) CacheClientReply(cacheID string, reply rpc.ClientReply) error {
 	key := []byte("cacheID:" + cacheID)
 	if value := r.stableStore.GetBytes(key); value != nil {
 		return errors.New("request with the same clientId and seqNum already exists")
@@ -74,12 +75,12 @@ func (r *Node) CacheClientReply(cacheID string, reply ClientReply) error {
 // GetCachedReply checks if the given client request has a cached response.
 // It returns the cached response (or nil) and a boolean indicating whether or not
 // a cached response existed.
-func (r *Node) GetCachedReply(clientReq ClientRequest) (*ClientReply, bool) {
+func (r *Node) GetCachedReply(clientReq rpc.ClientRequest) (*rpc.ClientReply, bool) {
 	cacheID := createCacheID(clientReq.ClientId, clientReq.SequenceNum)
 	key := []byte("cacheID:" + cacheID)
 
 	if value := r.stableStore.GetBytes(key); value != nil {
-		var reply ClientReply
+		var reply rpc.ClientReply
 		util.DecodeMsgPack(value, &reply)
 		return &reply, true
 	}
@@ -92,7 +93,7 @@ func (r *Node) LastLogIndex() uint64 {
 }
 
 // StoreLog appends log to log entry. Should always succeed
-func (r *Node) StoreLog(log *LogEntry) {
+func (r *Node) StoreLog(log *rpc.LogEntry) {
 	err := r.stableStore.StoreLog(log)
 	if err != nil {
 		panic(err)
@@ -100,7 +101,7 @@ func (r *Node) StoreLog(log *LogEntry) {
 }
 
 // GetLog gets a log at a specific index. If log does not exist, GetLog returns nil
-func (r *Node) GetLog(index uint64) *LogEntry {
+func (r *Node) GetLog(index uint64) *rpc.LogEntry {
 	return r.stableStore.GetLog(index)
 }
 

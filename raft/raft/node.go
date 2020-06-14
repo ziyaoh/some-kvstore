@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 
+	"github.com/ziyaoh/some-kvstore/rpc"
+	"github.com/ziyaoh/some-kvstore/util"
 	"google.golang.org/grpc"
 )
 
@@ -25,16 +26,16 @@ const (
 
 // Node defines an individual Raft node.
 type Node struct {
-	State     NodeState
-	Self      *RemoteNode
-	Leader    *RemoteNode
-	Peers     []*RemoteNode
-	config    *Config
-	port      int
+	State  NodeState
+	Self   *rpc.RemoteNode // move (maybe, or both)
+	Leader *rpc.RemoteNode
+	Peers  []*rpc.RemoteNode
+	config *Config
+	// port      int // move (maybe, or both)
 	nodeMutex sync.Mutex
 
-	server        *grpc.Server
-	NetworkPolicy *NetworkPolicy
+	server        *grpc.Server // move (maybe, or both)
+	NetworkPolicy *rpc.NetworkPolicy
 
 	// Stable store (written to disk, use helper methods)
 	stableStore StableStore
@@ -50,15 +51,15 @@ type Node struct {
 	leaderMutex sync.Mutex
 
 	// Channels to send / receive various RPC messages (used in state functions)
-	appendEntries  chan AppendEntriesMsg
-	requestVote    chan RequestVoteMsg
-	registerClient chan RegisterClientMsg
-	clientRequest  chan ClientRequestMsg
-	gracefulExit   chan bool
+	appendEntries chan AppendEntriesMsg
+	requestVote   chan RequestVoteMsg
+	// registerClient chan RegisterClientMsg
+	clientRequest chan rpc.ClientRequestMsg
+	gracefulExit  chan bool
 
 	// Client request map (used to store channels to respond through once a
 	// request has been processed)
-	requestsByCacheID map[string]chan ClientReply
+	requestsByCacheID map[string]chan rpc.ClientReply
 	requestsMutex     sync.Mutex
 }
 
@@ -66,28 +67,28 @@ type Node struct {
 // as well as implementations of various interfaces that are required.
 // If we have any old state, such as snapshots, logs, Peers, etc, all those will be restored when creating the Raft node.
 // Use port=0 for auto selection
-func CreateNode(listener net.Listener, connect *RemoteNode, config *Config, stateMachine StateMachine, stableStore StableStore) (*Node, error) {
+func CreateNode(listener net.Listener, server *grpc.Server, connect *rpc.RemoteNode, config *Config, stateMachine StateMachine, stableStore StableStore) (*Node, error) {
 	r := new(Node)
 
 	// Set remote self based on listener address
-	r.Self = &RemoteNode{
-		Id:   AddrToID(listener.Addr().String(), config.NodeIDSize),
+	r.Self = &rpc.RemoteNode{
+		Id:   util.AddrToID(listener.Addr().String(), config.NodeIDSize),
 		Addr: listener.Addr().String(),
 	}
 	r.config = config
-	r.Peers = []*RemoteNode{}
+	r.Peers = []*rpc.RemoteNode{}
 	// passed in port may be 0
-	_, realPort, err := net.SplitHostPort(listener.Addr().String())
-	if err != nil {
-		return nil, err
-	}
-	r.port, err = strconv.Atoi(realPort)
-	if err != nil {
-		return nil, err
-	}
+	// _, realPort, err := net.SplitHostPort(listener.Addr().String())
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// r.port, err = strconv.Atoi(realPort)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	// Initialize network policy
-	r.NetworkPolicy = NewNetworkPolicy()
+	r.NetworkPolicy = rpc.NewNetworkPolicy()
 	r.NetworkPolicy.PauseWorld(false)
 
 	// Initialize leader specific state
@@ -99,8 +100,8 @@ func CreateNode(listener net.Listener, connect *RemoteNode, config *Config, stat
 	// Initialize RPC channels
 	r.appendEntries = make(chan AppendEntriesMsg)
 	r.requestVote = make(chan RequestVoteMsg)
-	r.registerClient = make(chan RegisterClientMsg)
-	r.clientRequest = make(chan ClientRequestMsg)
+	// r.registerClient = make(chan RegisterClientMsg)
+	r.clientRequest = make(chan rpc.ClientRequestMsg)
 	r.gracefulExit = make(chan bool)
 
 	// Initialize state machine (in Puddlestore, you'll switch this with your
@@ -112,17 +113,17 @@ func CreateNode(listener net.Listener, connect *RemoteNode, config *Config, stat
 	r.initStableStore()
 
 	// Initialize client request cache
-	r.requestsByCacheID = make(map[string]chan ClientReply)
+	r.requestsByCacheID = make(map[string]chan rpc.ClientReply)
 
 	// Start RPC server
-	r.server = grpc.NewServer()
-	RegisterRaftRPCServer(r.server, r)
+	r.server = server
+	rpc.RegisterRaftRPCServer(r.server, r)
 	go r.server.Serve(listener)
 	r.Out("Started node")
 
 	r.State = JoinState
 	if connect != nil {
-		err := connect.JoinRPC(r)
+		err := connect.JoinRPC(r.Self)
 		if err != nil {
 			return nil, err
 		}
@@ -163,7 +164,7 @@ func (r *Node) startCluster() {
 	for _, node := range r.Peers {
 		if r.Self.Id != node.Id {
 			r.Out("Starting node-%v", node.Id)
-			err := node.StartNodeRPC(r, r.Peers)
+			err := node.StartNodeRPC(r.Self, r.Peers)
 			if err != nil {
 				r.Error("Unable to start node: %v", err)
 			}
@@ -175,14 +176,14 @@ func (r *Node) startCluster() {
 }
 
 // Join adds the fromNode to the current Raft cluster.
-func (r *Node) Join(fromNode *RemoteNode) error {
+func (r *Node) Join(fromNode *rpc.RemoteNode) error {
 	r.nodeMutex.Lock()
 	defer r.nodeMutex.Unlock()
 
 	if len(r.Peers) == r.config.ClusterSize {
 		for _, node := range r.Peers {
 			if node.Id == fromNode.Id {
-				node.StartNodeRPC(r, r.Peers)
+				node.StartNodeRPC(r.Self, r.Peers)
 				return nil
 			}
 		}
@@ -196,7 +197,7 @@ func (r *Node) Join(fromNode *RemoteNode) error {
 }
 
 // StartNode is invoked on us by a remote node, and starts the current node in follower state.
-func (r *Node) StartNode(req *StartNodeRequest) error {
+func (r *Node) StartNode(req *rpc.StartNodeRequest) error {
 	r.nodeMutex.Lock()
 	defer r.nodeMutex.Unlock()
 
@@ -211,84 +212,79 @@ func (r *Node) StartNode(req *StartNodeRequest) error {
 
 // AppendEntriesMsg is used for notifying candidates of a new leader and transfering logs
 type AppendEntriesMsg struct {
-	request *AppendEntriesRequest
-	reply   chan AppendEntriesReply
+	request *rpc.AppendEntriesRequest
+	reply   chan rpc.AppendEntriesReply
 }
 
 // AppendEntries is invoked on us by a remote node, and sends the request and a
 // reply channel to the stateFunction.
-func (r *Node) AppendEntries(req *AppendEntriesRequest) AppendEntriesReply {
+func (r *Node) AppendEntries(req *rpc.AppendEntriesRequest) rpc.AppendEntriesReply {
 	// r.Debug("AppendEntries request received")
-	reply := make(chan AppendEntriesReply)
+	reply := make(chan rpc.AppendEntriesReply)
 	r.appendEntries <- AppendEntriesMsg{req, reply}
 	return <-reply
 }
 
 // RequestVoteMsg is used for raft elections
 type RequestVoteMsg struct {
-	request *RequestVoteRequest
-	reply   chan RequestVoteReply
+	request *rpc.RequestVoteRequest
+	reply   chan rpc.RequestVoteReply
 }
 
 // RequestVote is invoked on us by a remote node, and sends the request and a
 // reply channel to the stateFunction.
-func (r *Node) RequestVote(req *RequestVoteRequest) RequestVoteReply {
+func (r *Node) RequestVote(req *rpc.RequestVoteRequest) rpc.RequestVoteReply {
 	r.Debug("RequestVote request received")
-	reply := make(chan RequestVoteReply)
+	reply := make(chan rpc.RequestVoteReply)
 	r.requestVote <- RequestVoteMsg{req, reply}
 	return <-reply
 }
 
+// TODO: move to shard master
 // RegisterClientMsg is sent from a client to raft leader to register itself. Mainly used for caching purposes
-type RegisterClientMsg struct {
-	request *RegisterClientRequest
-	reply   chan RegisterClientReply
-}
+// type RegisterClientMsg struct {
+// 	request *RegisterClientRequest
+// 	reply   chan RegisterClientReply
+// }
 
-// RegisterClient is invoked on us by a client, and sends the request and a
-// reply channel to the stateFunction. If the cluster hasn't started yet, it
-// returns the corresponding RegisterClientReply.
-func (r *Node) RegisterClient(req *RegisterClientRequest) RegisterClientReply {
-	r.Debug("RegisterClientRequest received")
-	reply := make(chan RegisterClientReply)
+// // RegisterClient is invoked on us by a client, and sends the request and a
+// // reply channel to the stateFunction. If the cluster hasn't started yet, it
+// // returns the corresponding RegisterClientReply.
+// func (r *Node) RegisterClient(req *RegisterClientRequest) RegisterClientReply {
+// 	r.Debug("RegisterClientRequest received")
+// 	reply := make(chan RegisterClientReply)
 
-	// If cluster hasn't started yet, return
-	if r.State == JoinState {
-		return RegisterClientReply{
-			Status:     ClientStatus_CLUSTER_NOT_STARTED,
-			ClientId:   0,
-			LeaderHint: nil,
-		}
-	}
+// 	// If cluster hasn't started yet, return
+// 	if r.State == JoinState {
+// 		return RegisterClientReply{
+// 			Status:     ClientStatus_CLUSTER_NOT_STARTED,
+// 			ClientId:   0,
+// 			LeaderHint: nil,
+// 		}
+// 	}
 
-	// Send request down channel to be processed by current stateFunction
-	r.registerClient <- RegisterClientMsg{req, reply}
-	return <-reply
-}
-
-// ClientRequestMsg is sent from a client to raft leader to make changes to the state machine
-type ClientRequestMsg struct {
-	request *ClientRequest
-	reply   chan ClientReply
-}
+// 	// Send request down channel to be processed by current stateFunction
+// 	r.registerClient <- RegisterClientMsg{req, reply}
+// 	return <-reply
+// }
 
 // ClientRequest is invoked on us by a client, and sends the request and a
 // reply channel to the stateFunction. If the cluster hasn't started yet, it
-// returns the corresponding ClientReply.
-func (r *Node) ClientRequest(req *ClientRequest) ClientReply {
+// returns the corresponding rpc.ClientReply.
+func (r *Node) ClientRequest(reqMsg *rpc.ClientRequestMsg) rpc.ClientReply {
 	r.Debug("ClientRequest request received")
 
 	// If cluster hasn't started yet, return
 	if r.State == JoinState {
-		return ClientReply{
-			Status:     ClientStatus_CLUSTER_NOT_STARTED,
+		return rpc.ClientReply{
+			Status:     rpc.ClientStatus_CLUSTER_NOT_STARTED,
 			Response:   nil,
 			LeaderHint: nil,
 		}
 	}
 
-	reply := make(chan ClientReply)
-	cr, exists := r.GetCachedReply(*req)
+	reply := make(chan rpc.ClientReply)
+	cr, exists := r.GetCachedReply(*reqMsg.Request)
 
 	if exists {
 		// If the request has been cached, reply with existing response
@@ -296,7 +292,8 @@ func (r *Node) ClientRequest(req *ClientRequest) ClientReply {
 	}
 
 	// Else, send request down channel to be processed by current stateFunction
-	r.clientRequest <- ClientRequestMsg{req, reply}
+	// r.clientRequest <- rpc.ClientRequestMsg{req, reply}
+	r.clientRequest <- *reqMsg
 	return <-reply
 }
 

@@ -1,13 +1,6 @@
-//
-//  Brown University, CS138, Spring 2018
-//
-//  Purpose: Defines the Raft RPC protocol using Google's Protocol Buffers
-//  syntax. See https://developers.google.com/protocol-buffers for more details.
-//
-
 syntax = "proto3";
 
-package raft;
+package rpc;
 
 // The service that defines what RPC calls Raft supports
 service RaftRPC {
@@ -26,14 +19,19 @@ service RaftRPC {
 
   // Invoked by candidate nodes to request votes from other nodes.
   rpc RequestVoteCaller(RequestVoteRequest) returns (RequestVoteReply) {}
+}
 
+// The service that defines what RPC calls Raft supports
+service ReplicationGroupRPC {
+  // Called by a client to make a request to a ReplicationGroup node
+  rpc ClientRequestCaller(ClientRequest) returns (ClientReply) {}
+}
+
+service ShardMasterRPC {
   // Called by a client when it first starts up to register itself with the
-  // Raft cluster and get a unique client id.
+  // ReplicationGroup cluster and get a unique client id.
   rpc RegisterClientCaller(RegisterClientRequest)
       returns (RegisterClientReply) {}
-
-  // Called by a client to make a request to a Raft node
-  rpc ClientRequestCaller(ClientRequest) returns (ClientReply) {}
 }
 
 // Important building blocks for the following RPC requests/responses as well as

@@ -1,5 +1,7 @@
 package raft
 
+import "github.com/ziyaoh/some-kvstore/rpc"
+
 // doCandidate implements the logic for a Raft node in the candidate state.
 func (r *Node) doCandidate() stateFunction {
 	r.Out("Transitioning to CandidateState")
@@ -27,18 +29,19 @@ func (r *Node) doCandidate() stateFunction {
 			}
 
 		case clientMsg := <-r.clientRequest:
-			clientMsg.reply <- ClientReply{
+			clientMsg.Reply <- rpc.ClientReply{
 				Status:     2,
 				Response:   nil,
 				LeaderHint: r.Self,
 			}
 
-		case registerMsg := <-r.registerClient:
-			registerMsg.reply <- RegisterClientReply{
-				Status:     2,
-				ClientId:   0,
-				LeaderHint: r.Self,
-			}
+		// TODO: move to shard master
+		// case registerMsg := <-r.registerClient:
+		// 	registerMsg.reply <- RegisterClientReply{
+		// 		Status:     2,
+		// 		ClientId:   0,
+		// 		LeaderHint: r.Self,
+		// 	}
 
 		case voteMsg := <-r.requestVote:
 			if r.handleCompetingRequestVote(voteMsg) {
@@ -75,8 +78,8 @@ const (
 	RequestVoteFallback                   = "fallback"
 )
 
-func (r *Node) requestPeerVote(peer *RemoteNode, msg *RequestVoteRequest, resultChan chan RequestVoteResult) {
-	reply, err := peer.RequestVoteRPC(r, msg)
+func (r *Node) requestPeerVote(peer *rpc.RemoteNode, msg *rpc.RequestVoteRequest, resultChan chan RequestVoteResult) {
+	reply, err := peer.RequestVoteRPC(r.Self, msg)
 
 	if err != nil {
 		r.Error("Error in requesting a vote from %v", peer.GetId())
@@ -106,7 +109,7 @@ func (r *Node) requestVotes(electionResults chan bool, fallback chan bool, currT
 		if r.Self.GetId() == peer.GetId() {
 			continue
 		}
-		msg := RequestVoteRequest{
+		msg := rpc.RequestVoteRequest{
 			Term:         currTerm,
 			Candidate:    r.Self,
 			LastLogIndex: r.LastLogIndex(),
@@ -151,7 +154,7 @@ func (r *Node) handleCompetingRequestVote(msg RequestVoteMsg) (fallback bool) {
 	reply := msg.reply
 	// If a server receives a request with a stale term number, it rejects the request (&5.1)
 	if r.GetCurrentTerm() >= request.GetTerm() {
-		reply <- RequestVoteReply{Term: r.GetCurrentTerm(), VoteGranted: false}
+		reply <- rpc.RequestVoteReply{Term: r.GetCurrentTerm(), VoteGranted: false}
 		return false
 	}
 	r.setCurrentTerm(request.GetTerm())
@@ -162,9 +165,9 @@ func (r *Node) handleCompetingRequestVote(msg RequestVoteMsg) (fallback bool) {
 	if lastTerm < request.GetLastLogTerm() ||
 		(lastTerm == request.GetLastLogTerm() && r.LastLogIndex() <= request.GetLastLogIndex()) {
 		r.setVotedFor(request.GetCandidate().GetId())
-		reply <- RequestVoteReply{Term: r.GetCurrentTerm(), VoteGranted: true}
+		reply <- rpc.RequestVoteReply{Term: r.GetCurrentTerm(), VoteGranted: true}
 		return true
 	}
-	reply <- RequestVoteReply{Term: r.GetCurrentTerm(), VoteGranted: false}
+	reply <- rpc.RequestVoteReply{Term: r.GetCurrentTerm(), VoteGranted: false}
 	return true
 }

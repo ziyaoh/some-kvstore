@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/ziyaoh/some-kvstore/raft/statemachines"
+	"github.com/ziyaoh/some-kvstore/rpc"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -34,26 +35,26 @@ var MockError error = fmt.Errorf("Error by Mock Raft")
 const WIN_EADDRINUSE = syscall.Errno(10048)
 
 // Default implementation. Does nothing except return true.
-func DefaultJoinCaller(ctx context.Context, r *RemoteNode) (*Ok, error) {
-	return &Ok{Ok: true}, nil
+func DefaultJoinCaller(ctx context.Context, r *rpc.RemoteNode) (*rpc.Ok, error) {
+	return &rpc.Ok{Ok: true}, nil
 }
 
 // Default implementation. Does nothing except return true.
-func DefaultStartNodeCaller(ctx context.Context, req *StartNodeRequest) (*Ok, error) {
-	return &Ok{Ok: true}, nil
+func DefaultStartNodeCaller(ctx context.Context, req *rpc.StartNodeRequest) (*rpc.Ok, error) {
+	return &rpc.Ok{Ok: true}, nil
 }
 
 // Default implementation. Does nothing except return true and echo the term.
-func DefaultAppendEntriesCaller(ctx context.Context, req *AppendEntriesRequest) (*AppendEntriesReply, error) {
-	reply := &AppendEntriesReply{}
+func DefaultAppendEntriesCaller(ctx context.Context, req *rpc.AppendEntriesRequest) (*rpc.AppendEntriesReply, error) {
+	reply := &rpc.AppendEntriesReply{}
 	reply.Term = req.Term
 	reply.Success = true
 	return reply, nil
 }
 
 // Default implementation. Echoes the term and always votes positively.
-func DefaultRequestVoteCaller(ctx context.Context, req *RequestVoteRequest) (*RequestVoteReply, error) {
-	reply := &RequestVoteReply{}
+func DefaultRequestVoteCaller(ctx context.Context, req *rpc.RequestVoteRequest) (*rpc.RequestVoteReply, error) {
+	reply := &rpc.RequestVoteReply{}
 	reply.Term = req.Term
 	reply.VoteGranted = true
 
@@ -61,86 +62,86 @@ func DefaultRequestVoteCaller(ctx context.Context, req *RequestVoteRequest) (*Re
 }
 
 // Default implementation. Returns empty, since it's not useful for testing student code.
-func DefaultRegisterClientCaller(ctx context.Context, req *RegisterClientRequest) (*RegisterClientReply, error) {
-	return &RegisterClientReply{}, nil
+func DefaultRegisterClientCaller(ctx context.Context, req *rpc.RegisterClientRequest) (*rpc.RegisterClientReply, error) {
+	return &rpc.RegisterClientReply{}, nil
 }
 
 // Default implementation. Returns empty, since it's not useful for testing student code.
-func DefaultClientRequestCaller(ctx context.Context, req *ClientRequest) (*ClientReply, error) {
-	return &ClientReply{}, nil
+func DefaultClientRequestCaller(ctx context.Context, req *rpc.ClientRequest) (*rpc.ClientReply, error) {
+	return &rpc.ClientReply{}, nil
 }
 
 // Error implementation. Always returns a MockError.
-func ErrorJoinCaller(ctx context.Context, r *RemoteNode) (*Ok, error) {
+func ErrorJoinCaller(ctx context.Context, r *rpc.RemoteNode) (*rpc.Ok, error) {
 	return nil, MockError
 }
 
 // Error implementation. Always returns a MockError.
-func ErrorStartNodeCaller(ctx context.Context, req *StartNodeRequest) (*Ok, error) {
+func ErrorStartNodeCaller(ctx context.Context, req *rpc.StartNodeRequest) (*rpc.Ok, error) {
 	return nil, MockError
 }
 
 // Error implementation. Always returns a MockError.
-func ErrorAppendEntriesCaller(ctx context.Context, req *AppendEntriesRequest) (*AppendEntriesReply, error) {
+func ErrorAppendEntriesCaller(ctx context.Context, req *rpc.AppendEntriesRequest) (*rpc.AppendEntriesReply, error) {
 	return nil, MockError
 }
 
 // Error implementation. Always returns a MockError.
-func ErrorRequestVoteCaller(ctx context.Context, req *RequestVoteRequest) (*RequestVoteReply, error) {
+func ErrorRequestVoteCaller(ctx context.Context, req *rpc.RequestVoteRequest) (*rpc.RequestVoteReply, error) {
 	return nil, MockError
 }
 
 // Error implementation. Always returns a MockError.
-func ErrorRegisterClientCaller(ctx context.Context, req *RegisterClientRequest) (*RegisterClientReply, error) {
+func ErrorRegisterClientCaller(ctx context.Context, req *rpc.RegisterClientRequest) (*rpc.RegisterClientReply, error) {
 	return nil, MockError
 }
 
 // Error implementation. Always returns a MockError.
-func ErrorClientRequestCaller(ctx context.Context, req *ClientRequest) (*ClientReply, error) {
+func ErrorClientRequestCaller(ctx context.Context, req *rpc.ClientRequest) (*rpc.ClientReply, error) {
 	return nil, MockError
 }
 
 type MockRaft struct {
 	// implements RaftRPCServer
-	Join           func(ctx context.Context, r *RemoteNode) (*Ok, error)
-	StartNode      func(ctx context.Context, req *StartNodeRequest) (*Ok, error)
-	AppendEntries  func(ctx context.Context, req *AppendEntriesRequest) (*AppendEntriesReply, error)
-	RequestVote    func(ctx context.Context, req *RequestVoteRequest) (*RequestVoteReply, error)
-	RegisterClient func(ctx context.Context, req *RegisterClientRequest) (*RegisterClientReply, error)
-	ClientRequest  func(ctx context.Context, req *ClientRequest) (*ClientReply, error)
+	Join           func(ctx context.Context, r *rpc.RemoteNode) (*rpc.Ok, error)
+	StartNode      func(ctx context.Context, req *rpc.StartNodeRequest) (*rpc.Ok, error)
+	AppendEntries  func(ctx context.Context, req *rpc.AppendEntriesRequest) (*rpc.AppendEntriesReply, error)
+	RequestVote    func(ctx context.Context, req *rpc.RequestVoteRequest) (*rpc.RequestVoteReply, error)
+	RegisterClient func(ctx context.Context, req *rpc.RegisterClientRequest) (*rpc.RegisterClientReply, error)
+	ClientRequest  func(ctx context.Context, req *rpc.ClientRequest) (*rpc.ClientReply, error)
 
-	RemoteSelf        *RemoteNode
+	RemoteSelf        *rpc.RemoteNode
 	server            *grpc.Server
 	StudentRaft       *Node
-	studentRaftClient RaftRPCClient
+	studentRaftClient rpc.RaftRPCClient
 
-	receivedReqs  []*AppendEntriesRequest
+	receivedReqs  []*rpc.AppendEntriesRequest
 	receivedMutex sync.Mutex
 
 	t *testing.T
 }
 
-func (m *MockRaft) JoinCaller(ctx context.Context, r *RemoteNode) (*Ok, error) {
+func (m *MockRaft) JoinCaller(ctx context.Context, r *rpc.RemoteNode) (*rpc.Ok, error) {
 	return m.Join(ctx, r)
 }
 
-func (m *MockRaft) StartNodeCaller(ctx context.Context, req *StartNodeRequest) (*Ok, error) {
+func (m *MockRaft) StartNodeCaller(ctx context.Context, req *rpc.StartNodeRequest) (*rpc.Ok, error) {
 	return m.StartNode(ctx, req)
 }
 
-func (m *MockRaft) AppendEntriesCaller(ctx context.Context, req *AppendEntriesRequest) (*AppendEntriesReply, error) {
+func (m *MockRaft) AppendEntriesCaller(ctx context.Context, req *rpc.AppendEntriesRequest) (*rpc.AppendEntriesReply, error) {
 	return m.AppendEntries(ctx, req)
 }
 
-func (m *MockRaft) RequestVoteCaller(ctx context.Context, req *RequestVoteRequest) (*RequestVoteReply, error) {
+func (m *MockRaft) RequestVoteCaller(ctx context.Context, req *rpc.RequestVoteRequest) (*rpc.RequestVoteReply, error) {
 	return m.RequestVote(ctx, req)
 }
 
-func (m *MockRaft) RegisterClientCaller(ctx context.Context, req *RegisterClientRequest) (*RegisterClientReply, error) {
+func (m *MockRaft) RegisterClientCaller(ctx context.Context, req *rpc.RegisterClientRequest) (*rpc.RegisterClientReply, error) {
 	return m.RegisterClient(ctx, req)
 }
 
-func (m *MockRaft) ClientRequestCaller(ctx context.Context, req *ClientRequest) (*ClientReply, error) {
+func (m *MockRaft) ClientRequestCaller(ctx context.Context, req *rpc.ClientRequest) (*rpc.ClientReply, error) {
 	return m.ClientRequest(ctx, req)
 }
 
@@ -174,7 +175,7 @@ func MockCluster(joinThem bool, config *Config, t *testing.T) (studentRaft *Node
 		// stableStore = NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", rand.Int())))
 		stableStore = nil
 	}
-	studentRaft, err = CreateNode(OpenPort(0), nil, config, new(statemachines.HashMachine), stableStore)
+	studentRaft, err = CreateNode(OpenPort(0), grpc.NewServer(), nil, config, new(statemachines.HashMachine), stableStore)
 	if err != nil {
 		return
 	}
@@ -204,7 +205,7 @@ func MockCluster(joinThem bool, config *Config, t *testing.T) (studentRaft *Node
 
 func (m *MockRaft) init(config *Config) error {
 	m.server = grpc.NewServer()
-	RegisterRaftRPCServer(m.server, m)
+	rpc.RegisterRaftRPCServer(m.server, m)
 	conn, port, err := OpenListener()
 	if err != nil {
 		return err
@@ -212,9 +213,9 @@ func (m *MockRaft) init(config *Config) error {
 	hostname, _ := os.Hostname()
 	addr := fmt.Sprintf("%v:%v", hostname, port)
 	id := AddrToId(addr, 2)
-	m.RemoteSelf = &RemoteNode{Addr: addr, Id: id}
+	m.RemoteSelf = &rpc.RemoteNode{Addr: addr, Id: id}
 
-	cc, err := m.StudentRaft.Self.ClientConn()
+	cc, err := m.StudentRaft.Self.RaftRPCClientConn()
 	if err != nil {
 		return err
 	}
@@ -278,13 +279,13 @@ func (m *MockRaft) setTestingT(t *testing.T) {
 	m.t = t
 }
 
-func (m *MockRaft) validateAppendEntries(req *AppendEntriesRequest) {
+func (m *MockRaft) validateAppendEntries(req *rpc.AppendEntriesRequest) {
 	// outline
 	//     type AppendEntriesRequest struct {
 	//     // The leader's term
 	//     Term uint64 `protobuf:"varint,1,opt,name=term" json:"term,omitempty"`
 	//     // Address of the leader sending this request
-	//     Leader *RemoteNode `protobuf:"bytes,2,opt,name=leader" json:"leader,omitempty"`
+	//     Leader *rpc.RemoteNode `protobuf:"bytes,2,opt,name=leader" json:"leader,omitempty"`
 	//     // The index of the log entry immediately preceding the new ones
 	//     PrevLogIndex uint64 `protobuf:"varint,3,opt,name=prevLogIndex" json:"prevLogIndex,omitempty"`
 	//     // The term of the log entry at prevLogIndex
@@ -316,7 +317,7 @@ func (m *MockRaft) validateAppendEntries(req *AppendEntriesRequest) {
 	// m.StudentRaft.leaderMutex.Unlock()
 }
 
-func (m *MockRaft) addRequest(req *AppendEntriesRequest) {
+func (m *MockRaft) addRequest(req *rpc.AppendEntriesRequest) {
 	m.receivedMutex.Lock()
 	defer m.receivedMutex.Unlock()
 	m.receivedReqs = append(m.receivedReqs, req)
