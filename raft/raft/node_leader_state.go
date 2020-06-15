@@ -12,11 +12,6 @@ func (r *Node) doLeader() stateFunction {
 	r.Out("Transitioning to LeaderState")
 	r.State = LeaderState
 
-	// TODO: Students should implement this method
-	// Hint: perform any initial work, and then consider what a node in the
-	// leader state should do when it receives an incoming message on every
-	// possible channel.
-
 	r.Leader = r.Self
 	// When a leader first comes to power, it initializes all nextIndex values to the index just after the last one in its log (&5.3)
 	r.leaderMutex.Lock()
@@ -50,15 +45,14 @@ func (r *Node) doLeader() stateFunction {
 				return nil
 			}
 		case clientMsg := <-r.clientRequest:
-			request := clientMsg.Request
-			reply := clientMsg.Reply
+			request := clientMsg.request
+			reply := clientMsg.reply
 			r.handleClientRequest(request, reply)
 
-		// TODO: move to shard master
-		// case registerMsg := <-r.registerClient:
-		// 	reply := registerMsg.reply
+		case registerMsg := <-r.registerClient:
+			reply := registerMsg.reply
 
-		// 	go r.handleRegisterClient(reply, fallbackChan)
+			r.handleRegisterClient(reply)
 
 		case voteMsg := <-r.requestVote:
 			if r.handleCompetingRequestVote(voteMsg) {
@@ -152,7 +146,6 @@ func (r *Node) sendHeartbeat(peer *rpc.RemoteNode, msg *rpc.AppendEntriesRequest
 // up to that index. Once committed to that index, the replicated state
 // machine should be given the new log entries via processLogEntry.
 func (r *Node) sendHeartbeats() (fallback, sentToMajority bool) {
-	// TODO: Students should implement this method
 	r.leaderMutex.Lock()
 	leaderCommit := r.commitIndex
 	r.leaderMutex.Unlock()
@@ -199,13 +192,13 @@ func (r *Node) sendHeartbeats() (fallback, sentToMajority bool) {
 }
 
 func (r *Node) handleClientRequest(request *rpc.ClientRequest, replyChannel chan rpc.ClientReply) {
-	cacheId := createCacheID(request.ClientId, request.SequenceNum)
+	cacheID := createCacheID(request.ClientId, request.SequenceNum)
 	r.requestsMutex.Lock()
-	oldChannel, exist := r.requestsByCacheID[cacheId]
+	oldChannel, exist := r.requestsByCacheID[cacheID]
 	if exist {
 		// duplicate request: result under processing
 		ch := make(chan rpc.ClientReply)
-		r.requestsByCacheID[cacheId] = ch
+		r.requestsByCacheID[cacheID] = ch
 		go func() {
 			response := <-ch
 			oldChannel <- response
@@ -214,7 +207,7 @@ func (r *Node) handleClientRequest(request *rpc.ClientRequest, replyChannel chan
 		r.requestsMutex.Unlock()
 		return
 	}
-	r.requestsByCacheID[cacheId] = replyChannel
+	r.requestsByCacheID[cacheID] = replyChannel
 	r.requestsMutex.Unlock()
 
 	// new request
@@ -225,56 +218,54 @@ func (r *Node) handleClientRequest(request *rpc.ClientRequest, replyChannel chan
 		Type:    rpc.CommandType_STATE_MACHINE_COMMAND,
 		Command: request.StateMachineCmd,
 		Data:    request.Data,
-		CacheId: cacheId,
+		CacheId: cacheID,
 	}
 	r.StoreLog(&logEntry)
 	r.leaderMutex.Unlock()
 }
 
-func (r *Node) handleRegisterClient(reply chan rpc.RegisterClientReply, fallbackChan chan bool) {
+func (r *Node) handleRegisterClient(replyChannel chan rpc.RegisterClientReply) {
 	r.leaderMutex.Lock()
 	logEntry := rpc.LogEntry{
 		Index:  r.LastLogIndex() + 1,
 		TermId: r.GetCurrentTerm(),
 		Type:   rpc.CommandType_CLIENT_REGISTRATION,
 	}
+
+	r.registrationsMutex.Lock()
+	_, exist := r.registrationsByLogIndex[logEntry.Index]
+	if exist {
+		panic("should not exist")
+	}
+	r.registrationsByLogIndex[logEntry.Index] = replyChannel
+	r.registrationsMutex.Unlock()
+
 	r.StoreLog(&logEntry)
 	r.leaderMutex.Unlock()
-	fallback, sentToMajority := r.sendHeartbeats()
-
-	var registerReply rpc.RegisterClientReply
-	if fallback {
-		registerReply = rpc.RegisterClientReply{
-			Status:     rpc.ClientStatus_NOT_LEADER,
-			ClientId:   0,
-			LeaderHint: r.Self,
-		}
-	} else if sentToMajority {
-		registerReply = rpc.RegisterClientReply{
-			Status:     rpc.ClientStatus_OK,
-			ClientId:   logEntry.Index,
-			LeaderHint: r.Self,
-		}
-	} else {
-		registerReply = rpc.RegisterClientReply{
-			Status:     rpc.ClientStatus_REQ_FAILED,
-			ClientId:   0,
-			LeaderHint: r.Self,
-		}
-	}
-
-	reply <- registerReply
-	if fallback {
-		fallbackChan <- true
-	}
 }
 
 // processLogEntry applies a single log entry to the finite state machine. It is
 // called once a log entry has been replicated to a majority and committed by
 // the leader. Once the entry has been applied, the leader responds to the client
 // with the result, and also caches the response.
-func (r *Node) processLogEntry(entry rpc.LogEntry) rpc.ClientReply {
+func (r *Node) processLogEntry(entry rpc.LogEntry) {
 	r.Out("Processing log entry: %v", entry)
+
+	if entry.Type == rpc.CommandType_CLIENT_REGISTRATION {
+		registerReply := rpc.RegisterClientReply{
+			Status:     rpc.ClientStatus_OK,
+			ClientId:   entry.Index,
+			LeaderHint: r.Self,
+		}
+		r.registrationsMutex.Lock()
+		replyChan, exists := r.registrationsByLogIndex[entry.Index]
+		if exists {
+			replyChan <- registerReply
+			delete(r.registrationsByLogIndex, entry.Index)
+		}
+		r.registrationsMutex.Unlock()
+		return
+	}
 
 	status := rpc.ClientStatus_OK
 	response := []byte{}
@@ -309,6 +300,4 @@ func (r *Node) processLogEntry(entry rpc.LogEntry) rpc.ClientReply {
 		delete(r.requestsByCacheID, entry.CacheId)
 	}
 	r.requestsMutex.Unlock()
-
-	return reply
 }

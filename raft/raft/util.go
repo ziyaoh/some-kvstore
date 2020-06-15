@@ -34,7 +34,6 @@ func OpenPort(port int) net.Listener {
 
 // randomTimeout uses time.After to create a timeout between minTimeout and 2x that.
 func randomTimeout(minTimeout time.Duration) <-chan time.Time {
-	// TODO: Students should implement this method
 	random := rand.Int63n(minTimeout.Nanoseconds())
 	// fmt.Printf("RANDOM TIMEOUT: %d + %d\n", minTimeout.Nanoseconds(), random)
 	return time.After(time.Duration(minTimeout.Nanoseconds() + random))

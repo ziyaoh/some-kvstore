@@ -51,16 +51,21 @@ type Node struct {
 	leaderMutex sync.Mutex
 
 	// Channels to send / receive various RPC messages (used in state functions)
-	appendEntries chan AppendEntriesMsg
-	requestVote   chan RequestVoteMsg
-	// registerClient chan RegisterClientMsg
-	clientRequest chan rpc.ClientRequestMsg
-	gracefulExit  chan bool
+	appendEntries  chan AppendEntriesMsg
+	requestVote    chan RequestVoteMsg
+	registerClient chan RegisterClientMsg
+	clientRequest  chan ClientRequestMsg
+	gracefulExit   chan bool
 
 	// Client request map (used to store channels to respond through once a
 	// request has been processed)
 	requestsByCacheID map[string]chan rpc.ClientReply
 	requestsMutex     sync.Mutex
+
+	// Client registration map (used to store channels to respond through once a
+	// registration has been processed)
+	registrationsByLogIndex map[uint64]chan rpc.RegisterClientReply
+	registrationsMutex      sync.Mutex
 }
 
 // CreateNode is used to construct a new Raft node. It takes a configuration,
@@ -100,8 +105,8 @@ func CreateNode(listener net.Listener, server *grpc.Server, connect *rpc.RemoteN
 	// Initialize RPC channels
 	r.appendEntries = make(chan AppendEntriesMsg)
 	r.requestVote = make(chan RequestVoteMsg)
-	// r.registerClient = make(chan RegisterClientMsg)
-	r.clientRequest = make(chan rpc.ClientRequestMsg)
+	r.registerClient = make(chan RegisterClientMsg)
+	r.clientRequest = make(chan ClientRequestMsg)
 	r.gracefulExit = make(chan bool)
 
 	// Initialize state machine (in Puddlestore, you'll switch this with your
@@ -114,6 +119,7 @@ func CreateNode(listener net.Listener, server *grpc.Server, connect *rpc.RemoteN
 
 	// Initialize client request cache
 	r.requestsByCacheID = make(map[string]chan rpc.ClientReply)
+	r.registrationsByLogIndex = make(map[uint64]chan rpc.RegisterClientReply)
 
 	// Start RPC server
 	r.server = server
@@ -243,38 +249,43 @@ func (r *Node) RequestVote(req *rpc.RequestVoteRequest) rpc.RequestVoteReply {
 	return <-reply
 }
 
-// TODO: move to shard master
 // RegisterClientMsg is sent from a client to raft leader to register itself. Mainly used for caching purposes
-// type RegisterClientMsg struct {
-// 	request *RegisterClientRequest
-// 	reply   chan RegisterClientReply
-// }
+type RegisterClientMsg struct {
+	request *rpc.RegisterClientRequest
+	reply   chan rpc.RegisterClientReply
+}
 
-// // RegisterClient is invoked on us by a client, and sends the request and a
-// // reply channel to the stateFunction. If the cluster hasn't started yet, it
-// // returns the corresponding RegisterClientReply.
-// func (r *Node) RegisterClient(req *RegisterClientRequest) RegisterClientReply {
-// 	r.Debug("RegisterClientRequest received")
-// 	reply := make(chan RegisterClientReply)
+// RegisterClient is invoked on us by a client, and sends the request and a
+// reply channel to the stateFunction. If the cluster hasn't started yet, it
+// returns the corresponding RegisterClientReply.
+func (r *Node) RegisterClient(req *rpc.RegisterClientRequest) rpc.RegisterClientReply {
+	r.Debug("RegisterClientRequest received")
+	reply := make(chan rpc.RegisterClientReply)
 
-// 	// If cluster hasn't started yet, return
-// 	if r.State == JoinState {
-// 		return RegisterClientReply{
-// 			Status:     ClientStatus_CLUSTER_NOT_STARTED,
-// 			ClientId:   0,
-// 			LeaderHint: nil,
-// 		}
-// 	}
+	// If cluster hasn't started yet, return
+	if r.State == JoinState {
+		return rpc.RegisterClientReply{
+			Status:     rpc.ClientStatus_CLUSTER_NOT_STARTED,
+			ClientId:   0,
+			LeaderHint: nil,
+		}
+	}
 
-// 	// Send request down channel to be processed by current stateFunction
-// 	r.registerClient <- RegisterClientMsg{req, reply}
-// 	return <-reply
-// }
+	// Send request down channel to be processed by current stateFunction
+	r.registerClient <- RegisterClientMsg{req, reply}
+	return <-reply
+}
+
+// ClientRequestMsg is sent from a client to raft leader to make changes to the state machine
+type ClientRequestMsg struct {
+	request *rpc.ClientRequest
+	reply   chan rpc.ClientReply
+}
 
 // ClientRequest is invoked on us by a client, and sends the request and a
 // reply channel to the stateFunction. If the cluster hasn't started yet, it
-// returns the corresponding rpc.ClientReply.
-func (r *Node) ClientRequest(reqMsg *rpc.ClientRequestMsg) rpc.ClientReply {
+// returns the corresponding ClientReply.
+func (r *Node) ClientRequest(req *rpc.ClientRequest) rpc.ClientReply {
 	r.Debug("ClientRequest request received")
 
 	// If cluster hasn't started yet, return
@@ -287,7 +298,7 @@ func (r *Node) ClientRequest(reqMsg *rpc.ClientRequestMsg) rpc.ClientReply {
 	}
 
 	reply := make(chan rpc.ClientReply)
-	cr, exists := r.GetCachedReply(*reqMsg.Request)
+	cr, exists := r.GetCachedReply(*req)
 
 	if exists {
 		// If the request has been cached, reply with existing response
@@ -295,8 +306,7 @@ func (r *Node) ClientRequest(reqMsg *rpc.ClientRequestMsg) rpc.ClientReply {
 	}
 
 	// Else, send request down channel to be processed by current stateFunction
-	// r.clientRequest <- rpc.ClientRequestMsg{req, reply}
-	r.clientRequest <- *reqMsg
+	r.clientRequest <- ClientRequestMsg{req, reply}
 	return <-reply
 }
 

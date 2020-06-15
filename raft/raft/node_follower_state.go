@@ -11,18 +11,14 @@ func (r *Node) doFollower() stateFunction {
 	r.Out("Transitioning to FollowerState")
 	r.State = FollowerState
 
-	// TODO: Students should implement this method
-	// Hint: perform any initial work, and then consider what a node in the
-	// follower state should do when it receives an incoming message on every
-	// possible channel.
 	clientReply := rpc.ClientReply{
-		Status:     1,
+		Status:     rpc.ClientStatus_NOT_LEADER,
 		Response:   nil,
 		LeaderHint: r.Leader,
 	}
 
 	registerReply := rpc.RegisterClientReply{
-		Status:     1,
+		Status:     rpc.ClientStatus_NOT_LEADER,
 		ClientId:   0,
 		LeaderHint: r.Leader,
 	}
@@ -39,6 +35,13 @@ func (r *Node) doFollower() stateFunction {
 	r.requestsByCacheID = make(map[string]chan rpc.ClientReply)
 	r.requestsMutex.Unlock()
 
+	r.registrationsMutex.Lock()
+	for _, replyToClient := range r.registrationsByLogIndex {
+		replyToClient <- registerReply
+	}
+	r.registrationsByLogIndex = make(map[uint64]chan rpc.RegisterClientReply)
+	r.registrationsMutex.Unlock()
+
 	timeout := randomTimeout(r.config.ElectionTimeout)
 
 	for {
@@ -48,11 +51,10 @@ func (r *Node) doFollower() stateFunction {
 				return nil
 			}
 		case clientMsg := <-r.clientRequest:
-			clientMsg.Reply <- clientReply
+			clientMsg.reply <- clientReply
 
-		// TODO: move to shard master
-		// case registerMsg := <-r.registerClient:
-		// 	registerMsg.reply <- registerReply
+		case registerMsg := <-r.registerClient:
+			registerMsg.reply <- registerReply
 
 		case voteMsg := <-r.requestVote:
 			if r.handleRequestVote(voteMsg) {
@@ -77,7 +79,6 @@ func (r *Node) doFollower() stateFunction {
 // - resetTimeout is true if the follower node should reset the election timeout
 // - fallback is true if the node should become a follower again
 func (r *Node) handleAppendEntries(msg AppendEntriesMsg) (resetTimeout, fallback bool) {
-	// TODO: Students should implement this method
 	request := msg.request
 	reply := msg.reply
 	// If a server receives a request with a stale term number, it rejects the request (&5.1)
