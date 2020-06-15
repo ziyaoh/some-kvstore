@@ -4,6 +4,8 @@ import (
 	"math"
 	"testing"
 	"time"
+
+	"github.com/ziyaoh/some-kvstore/rpc"
 )
 
 // Leader is partitioned then rejoins back
@@ -68,10 +70,10 @@ func TestLeaderFailsAndRejoins(t *testing.T) {
 
 	// Add a new log entry to the new leader; SHOULD be replicated
 	newLeader.leaderMutex.Lock()
-	logEntry := &LogEntry{
+	logEntry := &rpc.LogEntry{
 		Index:  newLeader.LastLogIndex() + 1,
 		TermId: newLeader.GetCurrentTerm(),
-		Type:   CommandType_NOOP,
+		Type:   rpc.CommandType_NOOP,
 		Data:   []byte{5, 6, 7, 8},
 	}
 	newLeader.StoreLog(logEntry)
@@ -151,10 +153,10 @@ func TestFollowerPartitionedAndRejoinWithNewLog(t *testing.T) {
 
 	// Add a new log entry to the leader;
 	leader.leaderMutex.Lock()
-	logEntry := &LogEntry{
+	logEntry := &rpc.LogEntry{
 		Index:  leader.LastLogIndex() + 1,
 		TermId: leader.GetCurrentTerm(),
-		Type:   CommandType_NOOP,
+		Type:   rpc.CommandType_NOOP,
 		Data:   []byte{1, 2, 3, 4},
 	}
 	leader.StoreLog(logEntry)

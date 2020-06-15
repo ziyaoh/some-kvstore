@@ -97,7 +97,8 @@ const (
 )
 
 func (r *Node) sendHeartbeat(peer *rpc.RemoteNode, msg *rpc.AppendEntriesRequest, resultChan chan HeartbeatResult) {
-	reply, err := peer.AppendEntriesRPC(r.Self, msg)
+	// reply, err := peer.AppendEntriesRPC(r.Self, msg)
+	reply, err := r.appendEntriesRPC(peer, msg)
 
 	if err == nil {
 		if reply.GetSuccess() {

@@ -1,9 +1,11 @@
 package raft
 
 import (
-	"golang.org/x/net/context"
 	"testing"
 	"time"
+
+	"github.com/ziyaoh/some-kvstore/rpc"
+	"golang.org/x/net/context"
 )
 
 func TestHandleHeartbeat_Follower(t *testing.T) {
@@ -29,12 +31,12 @@ func TestHandleHeartbeat_Follower(t *testing.T) {
 		}
 
 		// make sure the client get the correct response while registering itself with a candidate
-		reply, _ := follower.AppendEntriesCaller(context.Background(), &AppendEntriesRequest{
+		reply, _ := follower.AppendEntriesCaller(context.Background(), &rpc.AppendEntriesRequest{
 			Term:         uint64(1),
 			Leader:       leader.Self,
 			PrevLogIndex: uint64(3),
 			PrevLogTerm:  uint64(1),
-			Entries:      []*LogEntry{},
+			Entries:      []*rpc.LogEntry{},
 			LeaderCommit: uint64(5),
 		})
 		if reply.Success {

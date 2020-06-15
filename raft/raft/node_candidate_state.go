@@ -79,7 +79,8 @@ const (
 )
 
 func (r *Node) requestPeerVote(peer *rpc.RemoteNode, msg *rpc.RequestVoteRequest, resultChan chan RequestVoteResult) {
-	reply, err := peer.RequestVoteRPC(r.Self, msg)
+	// reply, err := peer.RequestVoteRPC(r.Self, msg)
+	reply, err := r.requestVoteRPC(peer, msg)
 
 	if err != nil {
 		r.Error("Error in requesting a vote from %v", peer.GetId())

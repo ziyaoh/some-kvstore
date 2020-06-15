@@ -123,7 +123,8 @@ func CreateNode(listener net.Listener, server *grpc.Server, connect *rpc.RemoteN
 
 	r.State = JoinState
 	if connect != nil {
-		err := connect.JoinRPC(r.Self)
+		// err := connect.JoinRPC(r.Self)
+		err := r.joinRPC(connect)
 		if err != nil {
 			return nil, err
 		}
@@ -164,7 +165,8 @@ func (r *Node) startCluster() {
 	for _, node := range r.Peers {
 		if r.Self.Id != node.Id {
 			r.Out("Starting node-%v", node.Id)
-			err := node.StartNodeRPC(r.Self, r.Peers)
+			// err := node.StartNodeRPC(r.Self, r.Peers)
+			err := r.startNodeRPC(node, r.Peers)
 			if err != nil {
 				r.Error("Unable to start node: %v", err)
 			}
@@ -183,7 +185,8 @@ func (r *Node) Join(fromNode *rpc.RemoteNode) error {
 	if len(r.Peers) == r.config.ClusterSize {
 		for _, node := range r.Peers {
 			if node.Id == fromNode.Id {
-				node.StartNodeRPC(r.Self, r.Peers)
+				// node.StartNodeRPC(r.Self, r.Peers)
+				r.startNodeRPC(node, r.Peers)
 				return nil
 			}
 		}
