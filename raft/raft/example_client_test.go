@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/ziyaoh/some-kvstore/raft/statemachines"
-	"golang.org/x/net/context"
+	"github.com/ziyaoh/some-kvstore/rpc"
 )
 
 // Example test making sure leaders can register the client and process the request from clients properly
@@ -25,64 +25,123 @@ func TestClientInteraction_Leader(t *testing.T) {
 	}
 
 	// First make sure we can register a client correctly
-	reply, _ := leader.RegisterClientCaller(context.Background(), &RegisterClientRequest{})
+	reply := leader.RegisterClient(&rpc.RegisterClientRequest{})
 
-	if reply.Status != ClientStatus_OK {
+	if reply.Status != rpc.ClientStatus_OK {
 		t.Fatal("Counld not register client")
 	}
 
 	clientid := reply.ClientId
 
 	// Hash initialization request
-	initReq := ClientRequest{
+	initReq := rpc.ClientRequest{
 		ClientId:        clientid,
 		SequenceNum:     1,
 		StateMachineCmd: statemachines.HashChainInit,
 		Data:            []byte("hello"),
 	}
-	clientResult, _ := leader.ClientRequestCaller(context.Background(), &initReq)
-	if clientResult.Status != ClientStatus_OK {
+	clientResult := leader.ClientRequest(&initReq)
+	if clientResult.Status != rpc.ClientStatus_OK {
 		t.Fatal("Leader failed to commit a client request")
 	}
 
 	// Make sure further request is correct processed
-	ClientReq := ClientRequest{
+	ClientReq := rpc.ClientRequest{
 		ClientId:        clientid,
 		SequenceNum:     2,
 		StateMachineCmd: statemachines.HashChainAdd,
 		Data:            []byte{},
 	}
-	clientResult, _ = leader.ClientRequestCaller(context.Background(), &ClientReq)
-	if clientResult.Status != ClientStatus_OK {
+	clientResult = leader.ClientRequest(&ClientReq)
+	if clientResult.Status != rpc.ClientStatus_OK {
 		t.Fatal("Leader failed to commit a client request")
 	}
 
-	clientDupResult, _ := leader.ClientRequestCaller(context.Background(), &ClientReq)
-	if clientDupResult.Status != ClientStatus_OK || bytes.Compare(clientDupResult.Response, clientResult.Response) != 0 {
+	clientDupResult := leader.ClientRequest(&ClientReq)
+	if clientDupResult.Status != rpc.ClientStatus_OK || bytes.Compare(clientDupResult.Response, clientResult.Response) != 0 {
 		t.Fatal("Leader failed to handle duplicate requests")
 	}
 
 	// Make sure further request is correct processed
-	ClientNewReq := ClientRequest{
+	ClientNewReq := rpc.ClientRequest{
 		ClientId:        clientid,
 		SequenceNum:     3,
 		StateMachineCmd: statemachines.HashChainAdd,
 		Data:            []byte{},
 	}
 
-	resultChan := make(chan *ClientReply)
+	resultChan := make(chan rpc.ClientReply)
 	go func() {
-		clientResult, _ = leader.ClientRequestCaller(context.Background(), &ClientNewReq)
+		clientResult = leader.ClientRequest(&ClientNewReq)
 		resultChan <- clientResult
 	}()
 	go func() {
-		clientResult, _ = leader.ClientRequestCaller(context.Background(), &ClientNewReq)
+		clientResult = leader.ClientRequest(&ClientNewReq)
 		resultChan <- clientResult
 	}()
 	result1 := <-resultChan
 	result2 := <-resultChan
 	if result1.Status != result2.Status || bytes.Compare(result1.Response, result2.Response) != 0 {
 		t.Fatal("Leader failed to handle simultanous duplicate requests")
+	}
+}
+
+func TestClientInteraction_LeaderFallback(t *testing.T) {
+	suppressLoggers()
+	// SetDebug(true)
+	config := DefaultConfig()
+	cluster, _ := CreateLocalCluster(config)
+	defer cleanupCluster(cluster)
+
+	time.Sleep(2 * time.Second)
+
+	leader, err := findLeader(cluster)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// First make sure we can register a client correctly
+	reply := leader.RegisterClient(&rpc.RegisterClientRequest{})
+
+	if reply.Status != rpc.ClientStatus_OK {
+		t.Fatal("Counld not register client")
+	}
+
+	clientid := reply.ClientId
+
+	leader.NetworkPolicy.PauseWorld(true)
+
+	registerChan := make(chan rpc.RegisterClientReply)
+	go func() {
+		registerResult := leader.RegisterClient(&rpc.RegisterClientRequest{})
+		registerChan <- registerResult
+	}()
+
+	requestChan := make(chan rpc.ClientReply)
+	go func() {
+		// Hash initialization request
+		initReq := rpc.ClientRequest{
+			ClientId:        clientid,
+			SequenceNum:     1,
+			StateMachineCmd: statemachines.HashChainInit,
+			Data:            []byte("hello"),
+		}
+		requestResult := leader.ClientRequest(&initReq)
+		requestChan <- requestResult
+	}()
+
+	time.Sleep(2 * time.Second)
+	leader.NetworkPolicy.PauseWorld(false)
+
+	registerResult := <-registerChan
+	if registerResult.Status != rpc.ClientStatus_NOT_LEADER {
+		t.Error(registerResult.Status)
+		t.Fatal("Wrong response for client registration when leader fallback to follower")
+	}
+	requestResult := <-requestChan
+	if requestResult.Status != rpc.ClientStatus_NOT_LEADER {
+		t.Error(requestResult.Status)
+		t.Fatal("Wrong response for client request when leader fallback to follower")
 	}
 }
 
@@ -105,21 +164,21 @@ func TestClientInteraction_Follower(t *testing.T) {
 	}
 
 	// make sure the client get the correct response while registering itself with a follower
-	reply, _ := cluster[0].RegisterClientCaller(context.Background(), &RegisterClientRequest{})
-	if reply.Status != ClientStatus_NOT_LEADER && reply.Status != ClientStatus_ELECTION_IN_PROGRESS {
+	reply := cluster[0].RegisterClient(&rpc.RegisterClientRequest{})
+	if reply.Status != rpc.ClientStatus_NOT_LEADER && reply.Status != rpc.ClientStatus_ELECTION_IN_PROGRESS {
 		t.Error(reply.Status)
 		t.Fatal("Wrong response when registering a client to a follower")
 	}
 
 	// make sure the client get the correct response while sending a request to a follower
-	req := ClientRequest{
+	req := rpc.ClientRequest{
 		ClientId:        1,
 		SequenceNum:     1,
 		StateMachineCmd: statemachines.HashChainInit,
 		Data:            []byte("hello"),
 	}
-	clientResult, _ := cluster[0].ClientRequestCaller(context.Background(), &req)
-	if clientResult.Status != ClientStatus_NOT_LEADER && clientResult.Status != ClientStatus_ELECTION_IN_PROGRESS {
+	clientResult := cluster[0].ClientRequest(&req)
+	if clientResult.Status != rpc.ClientStatus_NOT_LEADER && clientResult.Status != rpc.ClientStatus_ELECTION_IN_PROGRESS {
 		t.Fatal("Wrong response when sending a client request to a follower")
 	}
 }
@@ -148,21 +207,21 @@ func TestClientInteraction_Candidate(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	// make sure the client get the correct response while registering itself with a candidate
-	reply, _ := follower.RegisterClientCaller(context.Background(), &RegisterClientRequest{})
-	if reply.Status != ClientStatus_NOT_LEADER && reply.Status != ClientStatus_ELECTION_IN_PROGRESS {
+	reply := follower.RegisterClient(&rpc.RegisterClientRequest{})
+	if reply.Status != rpc.ClientStatus_NOT_LEADER && reply.Status != rpc.ClientStatus_ELECTION_IN_PROGRESS {
 		t.Error(reply.Status)
 		t.Fatal("Wrong response when registering a client to a candidate")
 	}
 
 	// make sure the client get the correct response while sending a request to a candidate
-	req := ClientRequest{
+	req := rpc.ClientRequest{
 		ClientId:        1,
 		SequenceNum:     1,
 		StateMachineCmd: statemachines.HashChainInit,
 		Data:            []byte("hello"),
 	}
-	clientResult, _ := follower.ClientRequestCaller(context.Background(), &req)
-	if clientResult.Status != ClientStatus_NOT_LEADER && clientResult.Status != ClientStatus_ELECTION_IN_PROGRESS {
+	clientResult := follower.ClientRequest(&req)
+	if clientResult.Status != rpc.ClientStatus_NOT_LEADER && clientResult.Status != rpc.ClientStatus_ELECTION_IN_PROGRESS {
 		t.Fatal("Wrong response when sending a client request to a candidate")
 	}
 }

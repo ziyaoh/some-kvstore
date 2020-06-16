@@ -81,9 +81,9 @@ func TestNewElection(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// if oldLeader.Self.Id == newLeader.Self.Id {
-	// 	t.Errorf("leader did not change")
-	// }
+	if oldLeader.Self.Id == newLeader.Self.Id && oldLeader.GetCurrentTerm() == oldTerm {
+		t.Errorf("leader did not change")
+	}
 
 	if newLeader.GetCurrentTerm() == oldTerm {
 		t.Errorf("term did not change")

@@ -94,8 +94,8 @@ func TestLeaderFailsAndRejoins(t *testing.T) {
 		return
 	}
 
-	if leader.State != FollowerState {
-		t.Errorf("Old leader should become a follower after rejoining back. leader's state is %v", leader.State)
+	if leader.State != FollowerState && leader.GetCurrentTerm() <= newLeaderTerm {
+		t.Errorf("Old leader should become a follower or at least have a higher term after rejoining back. leader's state is %v", leader.State)
 		return
 	}
 
