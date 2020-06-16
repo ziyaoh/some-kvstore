@@ -9,13 +9,41 @@ references:
 
 Basically the sharded key/value store consists of a shard master and a bunch of replication groups, each of which is a Raft cluster.
 
+## RPC Services
+
+within Raft cluster
+- node join
+- start cluster
+- request vote
+- append entry
+
+replication group
+- Get <- fe
+- Put <- fe
+- Append <- fe
+- Delete <- fe
+- get shard <- rg
+
+shard master
+- client registration <- fe, rg
+- Get Configuration <- fe, rg
+- join <- fe
+- leave <- fe
+
 ## Shard Master
+
+APIs
+
+- Join
+- Leave
+- Move
+- Query
 
 ## Replication Group in Raft
 
 A replication groups manages one or more logical shards of the whole dataset, utilizing Raft protocol to reach consensus within a group.
 
-Client facing API
+Supporting Operations
 - Get
 
     returns nil when key doesn't exist, not throwing error
@@ -32,6 +60,33 @@ Client facing API
 
     delete key from store, pass silently if key not exist, not throwing error
 
+### Server Side
+
+#### Raft Cluster
+Consensus protocol. Each node in the cluster manages a KVStore state machine to replicate the key/value pairs stored by client.
+
+#### KVStore State Machine
+Available commands for clent
+- get
+- put
+- append
+- delete
+
+Commands for other replication group
+- getShard
+
+    callee returns and deletes local shard (or postpone delete maybe??)
+
+- ownShard
+
+    callee takes ownership of the passed in shard
+
+### Client
+- put
+- get
+- append
+- delete
+
 ## Persistence
 
 ## TODO
@@ -40,12 +95,17 @@ Client facing API
     - [ ] optimization
         - [ ] membership change
         - [ ] log compaction
+- [x] redesign and refactor RPC calls flow
 - [ ] single replication group
     - [x] KV store as state machine
         - [x] implementation
         - [x] test
-    - [ ] integrate KV store and raft
-    - [ ] integration tests
+    - [ ] integration
+        - [ ] replication group node
+        - [x] refactor existing raft implementation
+            - [x] fix and refactor old tests
+        - [ ] client
+        - [ ] integration tests
 - [ ] shard master
     - [ ] configuration
     - [ ] API
