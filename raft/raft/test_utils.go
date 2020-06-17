@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"time"
 
+	"github.com/ziyaoh/some-kvstore/util"
 	"google.golang.org/grpc/grpclog"
 )
 
@@ -15,16 +16,16 @@ const (
 )
 
 func suppressLoggers() {
-	Out.SetOutput(ioutil.Discard)
-	Error.SetOutput(ioutil.Discard)
-	Debug.SetOutput(ioutil.Discard)
-	grpclog.SetLogger(Out)
+	util.Out.SetOutput(ioutil.Discard)
+	util.Error.SetOutput(ioutil.Discard)
+	util.Debug.SetOutput(ioutil.Discard)
+	grpclog.SetLogger(util.Out)
 }
 
 // Creates a cluster of nodes at specific ports, with a
 // more lenient election timeout for testing.
 func createTestCluster(ports []int) ([]*Node, error) {
-	SetDebug(false)
+	util.SetDebug(false)
 	config := DefaultConfig()
 	config.ClusterSize = len(ports)
 	config.ElectionTimeout = time.Millisecond * 400

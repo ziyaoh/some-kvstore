@@ -3,55 +3,25 @@ package raft
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
-	"log"
-	"os"
 
 	"github.com/fatih/color"
-	"google.golang.org/grpc/grpclog"
+	"github.com/ziyaoh/some-kvstore/util"
 )
-
-// Debug is medium-risk logger
-var Debug *log.Logger
-
-// Out is low-risk logger
-var Out *log.Logger
-
-// Error is high-risk logger
-var Error *log.Logger
-
-// Initialize the loggers
-func init() {
-	Debug = log.New(ioutil.Discard, "", log.Ltime|log.Lshortfile)
-	Out = log.New(os.Stdout, "DEBUG: ", log.Ltime|log.Lshortfile)
-	Error = log.New(os.Stderr, "ERROR: ", log.Ltime|log.Lshortfile)
-
-	grpclog.SetLogger(log.New(ioutil.Discard, "", 0))
-}
-
-// SetDebug turns printing debug strings on or off
-func SetDebug(enabled bool) {
-	if enabled {
-		Debug.SetOutput(os.Stdout)
-	} else {
-		Debug.SetOutput(ioutil.Discard)
-	}
-}
 
 // Out prints to standard output, prefaced with time and filename
 func (r *Node) Out(formatString string, args ...interface{}) {
-	Out.Output(2, fmt.Sprintf("(%v/%v) %v\n", r.Self, r.State, fmt.Sprintf(formatString, args...)))
+	util.Out.Output(2, fmt.Sprintf("(%v/%v) %v\n", r.Self, r.State, fmt.Sprintf(formatString, args...)))
 }
 
 // Debug prints to standard output if SetDebug was called with enabled=true, prefaced with time and filename
 func (r *Node) Debug(formatString string, args ...interface{}) {
-	Debug.Output(2, fmt.Sprintf("(%v/%v) %v\n", r.Self, r.State, fmt.Sprintf(formatString, args...)))
+	util.Debug.Output(2, fmt.Sprintf("(%v/%v) %v\n", r.Self, r.State, fmt.Sprintf(formatString, args...)))
 }
 
 // Error prints to standard error, prefaced with "ERROR: ", time, and filename
 func (r *Node) Error(formatString string, args ...interface{}) {
 	color.Set(color.FgRed)
-	Error.Output(2, fmt.Sprintf("(%v/%v) %v\n", r.Self, r.State, fmt.Sprintf(formatString, args...)))
+	util.Error.Output(2, fmt.Sprintf("(%v/%v) %v\n", r.Self, r.State, fmt.Sprintf(formatString, args...)))
 	color.Unset()
 }
 

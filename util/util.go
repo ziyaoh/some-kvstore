@@ -3,10 +3,26 @@ package util
 import (
 	"bytes"
 	"crypto/sha1"
+	"fmt"
 	"math/big"
+	"net"
+	"os"
 
 	"github.com/hashicorp/go-msgpack/codec"
 )
+
+// OpenPort creates a listener on the specified port.
+func OpenPort(port int) net.Listener {
+	hostname, err := os.Hostname()
+	if err != nil {
+		panic(err)
+	}
+	listener, err := net.Listen("tcp4", fmt.Sprintf("%v:%v", hostname, port))
+	if err != nil {
+		panic(err)
+	}
+	return listener
+}
 
 // DecodeMsgPack reverses the encode operation on a byte slice input
 func DecodeMsgPack(buf []byte, out interface{}) error {

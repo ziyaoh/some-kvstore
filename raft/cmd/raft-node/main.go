@@ -10,6 +10,9 @@ import (
 	"github.com/abiosoft/ishell"
 	"github.com/ziyaoh/some-kvstore/raft/raft"
 	"github.com/ziyaoh/some-kvstore/raft/statemachines"
+	"github.com/ziyaoh/some-kvstore/rpc"
+	"github.com/ziyaoh/some-kvstore/util"
+	"google.golang.org/grpc"
 )
 
 // Node is wrapper for raft.Node
@@ -17,7 +20,7 @@ type Node struct {
 	*raft.Node
 }
 
-func (node Node) findNode(id string) *raft.RemoteNode {
+func (node Node) findNode(id string) *rpc.RemoteNode {
 	nodeList := node.Peers
 
 	for _, remoteNode := range nodeList {
@@ -65,13 +68,13 @@ func main() {
 	config.InMemory = memory
 
 	// Parse address of remote Raft node
-	var remoteNode *raft.RemoteNode
+	var remoteNode *rpc.RemoteNode
 	if addr != "" {
-		remoteNode = &raft.RemoteNode{Id: raft.AddrToID(addr, config.NodeIDSize), Addr: addr}
+		remoteNode = &rpc.RemoteNode{Id: util.AddrToID(addr, config.NodeIDSize), Addr: addr}
 	}
 
 	// Create listener
-	listener := raft.OpenPort(port)
+	listener := util.OpenPort(port)
 	_, realPort, err := net.SplitHostPort(listener.Addr().String())
 	if err != nil {
 		fmt.Printf("Error starting Raft node: %v\n", err)
@@ -93,7 +96,7 @@ func main() {
 
 	// Create Raft node
 	fmt.Println("Starting a Raft node...")
-	raftNode, err := raft.CreateNode(listener, remoteNode, config, new(statemachines.HashMachine), stableStore)
+	raftNode, err := raft.CreateNode(listener, grpc.NewServer(), remoteNode, config, new(statemachines.HashMachine), stableStore)
 	node := Node{raftNode}
 
 	if err != nil {

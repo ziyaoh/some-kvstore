@@ -16,6 +16,7 @@ import (
 
 	"github.com/ziyaoh/some-kvstore/raft/statemachines"
 	"github.com/ziyaoh/some-kvstore/rpc"
+	"github.com/ziyaoh/some-kvstore/util"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -175,7 +176,7 @@ func MockCluster(joinThem bool, config *Config, t *testing.T) (studentRaft *Node
 		// stableStore = NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", rand.Int())))
 		stableStore = nil
 	}
-	studentRaft, err = CreateNode(OpenPort(0), grpc.NewServer(), nil, config, new(statemachines.HashMachine), stableStore)
+	studentRaft, err = CreateNode(util.OpenPort(0), grpc.NewServer(), nil, config, new(statemachines.HashMachine), stableStore)
 	if err != nil {
 		return
 	}

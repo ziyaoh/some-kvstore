@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/rand"
-	"net"
-	"os"
 	"syscall"
 	"time"
 )
@@ -18,19 +16,6 @@ const HighPort int = 61000
 
 // WinEADDRINUSE to support windows machines
 const WinEADDRINUSE = syscall.Errno(10048)
-
-// OpenPort creates a listener on the specified port.
-func OpenPort(port int) net.Listener {
-	hostname, err := os.Hostname()
-	if err != nil {
-		panic(err)
-	}
-	listener, err := net.Listen("tcp4", fmt.Sprintf("%v:%v", hostname, port))
-	if err != nil {
-		panic(err)
-	}
-	return listener
-}
 
 // randomTimeout uses time.After to create a timeout between minTimeout and 2x that.
 func randomTimeout(minTimeout time.Duration) <-chan time.Time {

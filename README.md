@@ -101,10 +101,10 @@ Commands for other replication group
         - [x] implementation
         - [x] test
     - [ ] integration
-        - [ ] replication group node
+        - [x] replication group node
         - [x] refactor existing raft implementation
             - [x] fix and refactor old tests
-        - [ ] client
+        - [x] client
         - [ ] integration tests
 - [ ] shard master
     - [ ] configuration
