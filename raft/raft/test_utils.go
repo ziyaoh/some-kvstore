@@ -3,24 +3,15 @@ package raft
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"time"
 
 	"github.com/ziyaoh/some-kvstore/util"
-	"google.golang.org/grpc/grpclog"
 )
 
 // WaitPeriod is...
 const (
 	WaitPeriod = 6
 )
-
-func suppressLoggers() {
-	util.Out.SetOutput(ioutil.Discard)
-	util.Error.SetOutput(ioutil.Discard)
-	util.Debug.SetOutput(ioutil.Discard)
-	grpclog.SetLogger(util.Out)
-}
 
 // Creates a cluster of nodes at specific ports, with a
 // more lenient election timeout for testing.

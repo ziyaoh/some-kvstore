@@ -6,12 +6,13 @@ import (
 
 	"github.com/ziyaoh/some-kvstore/raft/statemachines"
 	"github.com/ziyaoh/some-kvstore/rpc"
+	"github.com/ziyaoh/some-kvstore/util"
 )
 
 // Test making sure leaders can register the client and process the request from clients properly
 // Making sure that heartbeats replicate logs correctly under multiple partition scenarios
 func TestAppendEntriesFromClient(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 	config := DefaultConfig()
 	config.ClusterSize = 7
 	cluster, _ := CreateLocalCluster(config)

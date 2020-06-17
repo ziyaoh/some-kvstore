@@ -3,11 +3,13 @@ package raft
 import (
 	"testing"
 	"time"
+
+	"github.com/ziyaoh/some-kvstore/util"
 )
 
 // Tests that nodes can successfully join a cluster and elect a leader.
 func TestInit(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 	config := DefaultConfig()
 	cluster, err := CreateLocalCluster(config)
 	defer cleanupCluster(cluster)
@@ -47,7 +49,7 @@ func TestInit(t *testing.T) {
 // Tests that if a leader is partitioned from its followers, a
 // new leader is elected.
 func TestNewElection(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 	// SetDebug(true)
 	config := DefaultConfig()
 	config.ClusterSize = 5

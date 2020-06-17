@@ -34,3 +34,11 @@ func SetDebug(enabled bool) {
 		Debug.SetOutput(ioutil.Discard)
 	}
 }
+
+// SuppressLoggers turns off all logging
+func SuppressLoggers() {
+	Out.SetOutput(ioutil.Discard)
+	Error.SetOutput(ioutil.Discard)
+	Debug.SetOutput(ioutil.Discard)
+	grpclog.SetLogger(Out)
+}

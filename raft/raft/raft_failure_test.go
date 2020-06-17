@@ -6,11 +6,12 @@ import (
 	"time"
 
 	"github.com/ziyaoh/some-kvstore/rpc"
+	"github.com/ziyaoh/some-kvstore/util"
 )
 
 // Leader is partitioned then rejoins back
 func TestLeaderFailsAndRejoins(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 
 	config := DefaultConfig()
 	config.ClusterSize = 5
@@ -121,7 +122,7 @@ func TestLeaderFailsAndRejoins(t *testing.T) {
 
 // A follower is partitioned. While it is partitioned, an new log entry is added to leader and replicates. Then the follower rejoins.
 func TestFollowerPartitionedAndRejoinWithNewLog(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 
 	config := DefaultConfig()
 	config.ClusterSize = 5
@@ -195,7 +196,7 @@ func TestFollowerPartitionedAndRejoinWithNewLog(t *testing.T) {
 }
 
 func TestCandidateAndLeaderFallbackAfterPartition(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 	config := DefaultConfig()
 	config.ClusterSize = 5
 	cluster, err := CreateLocalCluster(config)

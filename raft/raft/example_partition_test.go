@@ -6,10 +6,11 @@ import (
 	"time"
 
 	"github.com/ziyaoh/some-kvstore/rpc"
+	"github.com/ziyaoh/some-kvstore/util"
 )
 
 func TestPartition(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 
 	config := DefaultConfig()
 	config.ClusterSize = 5

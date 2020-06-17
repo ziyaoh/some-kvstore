@@ -5,12 +5,13 @@ import (
 	"time"
 
 	"github.com/ziyaoh/some-kvstore/rpc"
+	"github.com/ziyaoh/some-kvstore/util"
 	"golang.org/x/net/context"
 )
 
 // Test making sure follower would behave correctly when handling RequestVote
 func TestVote_Follower(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 	config := DefaultConfig()
 
 	t.Run("Handle RequestVote with Stale Term", func(t *testing.T) {
@@ -100,7 +101,7 @@ func TestVote_Follower(t *testing.T) {
 
 // Test making sure candidate would behave correctly when handling RequestVote
 func TestVote_Candidate(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 	config := DefaultConfig()
 	config.ClusterSize = 5
 
@@ -188,7 +189,7 @@ func TestVote_Candidate(t *testing.T) {
 
 // Test making sure candidate would behave correctly when handling RequestVote
 func TestVote_Leader(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 	config := DefaultConfig()
 	cluster, err := CreateLocalCluster(config)
 	defer cleanupCluster(cluster)

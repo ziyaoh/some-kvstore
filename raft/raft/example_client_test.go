@@ -7,11 +7,12 @@ import (
 
 	"github.com/ziyaoh/some-kvstore/raft/statemachines"
 	"github.com/ziyaoh/some-kvstore/rpc"
+	"github.com/ziyaoh/some-kvstore/util"
 )
 
 // Example test making sure leaders can register the client and process the request from clients properly
 func TestClientInteraction_Leader(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 	// SetDebug(true)
 	config := DefaultConfig()
 	cluster, _ := CreateLocalCluster(config)
@@ -87,7 +88,7 @@ func TestClientInteraction_Leader(t *testing.T) {
 }
 
 func TestClientInteraction_LeaderFallback(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 	// SetDebug(true)
 	config := DefaultConfig()
 	cluster, _ := CreateLocalCluster(config)
@@ -148,7 +149,7 @@ func TestClientInteraction_LeaderFallback(t *testing.T) {
 // Example test making sure the follower would reject the registration and requests from clients with correct messages
 // The test on candidates can be similar with these sample tests
 func TestClientInteraction_Follower(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 	config := DefaultConfig()
 	// set the ElectionTimeout long enough to keep nodes in the state of follower
 	config.ElectionTimeout = 60 * time.Second
@@ -185,7 +186,7 @@ func TestClientInteraction_Follower(t *testing.T) {
 
 // Example test making sure the candidate would reject the registration and requests from clients with correct messages
 func TestClientInteraction_Candidate(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 	config := DefaultConfig()
 	cluster, err := CreateLocalCluster(config)
 	defer cleanupCluster(cluster)

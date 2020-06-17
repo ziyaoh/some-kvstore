@@ -5,11 +5,12 @@ import (
 	"time"
 
 	"github.com/ziyaoh/some-kvstore/rpc"
+	"github.com/ziyaoh/some-kvstore/util"
 	"golang.org/x/net/context"
 )
 
 func TestHandleHeartbeat_Follower(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 	config := DefaultConfig()
 	cluster, err := CreateLocalCluster(config)
 	defer cleanupCluster(cluster)
