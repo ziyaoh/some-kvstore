@@ -58,3 +58,14 @@ func CreateNode(listener net.Listener, connect *rpc.RemoteNode, config *raft.Con
 func (node *Node) ClientRequest(req *rpc.ClientRequest) rpc.ClientReply {
 	return node.raft.ClientRequest(req)
 }
+
+// Exit abruptly shuts down the current node's process, including the GRPC server.
+func (node *Node) Exit() {
+	node.raft.Exit()
+}
+
+// GracefulExit sends a signal down the gracefulExit channel, in order to enable
+// a safe exit from the cluster, handled by the current stateFunction.
+func (node *Node) GracefulExit() {
+	node.raft.GracefulExit()
+}
