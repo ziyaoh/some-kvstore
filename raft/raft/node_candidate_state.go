@@ -117,6 +117,10 @@ func (r *Node) requestVotes(electionResults chan bool, fallbackChan chan bool, c
 	vote := 1
 	reject := 0
 	majority := r.config.ClusterSize/2 + 1
+	if vote >= majority {
+		electionResults <- true
+		return
+	}
 	for remaining > 0 {
 		requestVoteResult := <-resultChan
 		remaining--

@@ -102,24 +102,8 @@ func (r *Node) sendHeartbeat(peer *rpc.RemoteNode, msg *rpc.AppendEntriesRequest
 			numEntries := uint64(len(msg.Entries))
 			r.nextIndex[peer.GetId()] += numEntries
 			r.matchIndex[peer.GetId()] = r.nextIndex[peer.GetId()] - 1
-
-			values := make(SortableUint64Slice, 0)
-			for _, node := range r.Peers {
-				values = append(values, r.matchIndex[node.GetId()])
-			}
-
-			sort.Sort(values)
-			commitableIndex := values[len(values)/2]
-			if commitableIndex > r.commitIndex && r.GetCurrentTerm() == r.GetLog(commitableIndex).GetTermId() {
-				// commit and process log
-				start := r.lastApplied
-				for index := start + 1; index <= commitableIndex; index++ {
-					r.processLogEntry(*r.GetLog(index))
-					r.lastApplied = index
-				}
-				r.commitIndex = commitableIndex
-			}
 			r.leaderMutex.Unlock()
+			r.tryCommit()
 		} else {
 			if reply.GetTerm() > r.GetCurrentTerm() {
 				r.setCurrentTerm(reply.GetTerm())
@@ -135,6 +119,27 @@ func (r *Node) sendHeartbeat(peer *rpc.RemoteNode, msg *rpc.AppendEntriesRequest
 	} else {
 		resultChan <- HeartbeatFail
 	}
+}
+
+func (r *Node) tryCommit() {
+	r.leaderMutex.Lock()
+	values := make(SortableUint64Slice, 0)
+	for _, node := range r.Peers {
+		values = append(values, r.matchIndex[node.GetId()])
+	}
+
+	sort.Sort(values)
+	commitableIndex := values[len(values)/2]
+	if commitableIndex > r.commitIndex && r.GetCurrentTerm() == r.GetLog(commitableIndex).GetTermId() {
+		// commit and process log
+		start := r.lastApplied
+		for index := start + 1; index <= commitableIndex; index++ {
+			r.processLogEntry(*r.GetLog(index))
+			r.lastApplied = index
+		}
+		r.commitIndex = commitableIndex
+	}
+	r.leaderMutex.Unlock()
 }
 
 // sendHeartbeats is used by the leader to send out heartbeats to each of
@@ -173,6 +178,11 @@ func (r *Node) sendHeartbeats() (fallback, sentToMajority bool) {
 			total++
 			go r.sendHeartbeat(peer, &msg, resultChan)
 		}
+	}
+
+	if total == 0 {
+		r.tryCommit()
+		return
 	}
 
 	successCount := 0
