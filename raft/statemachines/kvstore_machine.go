@@ -2,6 +2,7 @@ package statemachines
 
 import (
 	"errors"
+	"os"
 	"time"
 
 	errHelp "github.com/pkg/errors"
@@ -67,6 +68,7 @@ func (store *KVStoreMachine) Close() {
 	if err != nil {
 		panic(err)
 	}
+	os.RemoveAll(store.path)
 }
 
 // GetState returns the state of the state machine as an interface{}, which can

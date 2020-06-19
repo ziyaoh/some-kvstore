@@ -66,3 +66,6 @@ func (h *HashMachine) ApplyCommand(command uint64, data []byte) ([]byte, error) 
 func (h HashMachine) String() string {
 	return fmt.Sprintf("HashMachine{%v}", h.hash)
 }
+
+// Close does nothing
+func (h HashMachine) Close() {}

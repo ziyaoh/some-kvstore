@@ -328,5 +328,6 @@ func (r *Node) GracefulExit() {
 
 	r.State = ExitState
 	r.stableStore.Close()
+	r.stateMachine.Close()
 	r.server.GracefulStop()
 }
