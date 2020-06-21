@@ -3,16 +3,18 @@ package replicationgroup
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/ziyaoh/some-kvstore/raft/raft"
 	"github.com/ziyaoh/some-kvstore/raft/statemachines"
 	"github.com/ziyaoh/some-kvstore/util"
 )
 
-// CreateLocalGroup creates a new Raft cluster with the given config in the
+// CreateLocalReplicationGroup creates a new Raft cluster with the given config in the
 // current process.
-func CreateLocalGroup(config *raft.Config) ([]*Node, error) {
+func CreateLocalReplicationGroup(config *raft.Config) ([]*Node, error) {
 	err := raft.CheckConfig(config)
 	if err != nil {
 		return nil, err
@@ -26,7 +28,15 @@ func CreateLocalGroup(config *raft.Config) ([]*Node, error) {
 	} else {
 		stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", rand.Int())))
 	}
-	nodes[0], err = CreateNode(util.OpenPort(0), nil, config, new(statemachines.HashMachine), stableStore)
+	boltPath := filepath.Join(os.TempDir(), fmt.Sprintf("kvstore_%d", rand.Int()))
+	kvstore, err := statemachines.NewKVStoreMachine(boltPath)
+	if err != nil {
+		panic(err)
+	}
+	if kvstore == nil {
+		panic("kvstore should not be nil")
+	}
+	nodes[0], err = CreateNode(util.OpenPort(0), nil, config, kvstore, stableStore)
 	if err != nil {
 		util.Error.Printf("Error creating first node: %v", err)
 		return nodes, err
@@ -39,7 +49,15 @@ func CreateLocalGroup(config *raft.Config) ([]*Node, error) {
 		} else {
 			stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", rand.Int())))
 		}
-		nodes[i], err = CreateNode(util.OpenPort(0), nodes[0].Self, config, new(statemachines.HashMachine), stableStore)
+		boltPath := filepath.Join(os.TempDir(), fmt.Sprintf("kvstore_%d", rand.Int()))
+		kvstore, err := statemachines.NewKVStoreMachine(boltPath)
+		if err != nil {
+			panic(err)
+		}
+		if kvstore == nil {
+			panic("kvstore should not be nil")
+		}
+		nodes[i], err = CreateNode(util.OpenPort(0), nodes[0].Self, config, kvstore, stableStore)
 		if err != nil {
 			return nil, err
 		}
@@ -48,9 +66,9 @@ func CreateLocalGroup(config *raft.Config) ([]*Node, error) {
 	return nodes, nil
 }
 
-// CreateDefinedLocalCluster creates a new Raft cluster with nodes listening at
+// CreateDefinedLocalReplicationGroup creates a new Raft cluster with nodes listening at
 // the given ports in the current process.
-func CreateDefinedLocalCluster(config *raft.Config, ports []int) ([]*Node, error) {
+func CreateDefinedLocalReplicationGroup(config *raft.Config, ports []int) ([]*Node, error) {
 	err := raft.CheckConfig(config)
 	if err != nil {
 		return nil, err
@@ -63,7 +81,15 @@ func CreateDefinedLocalCluster(config *raft.Config, ports []int) ([]*Node, error
 	} else {
 		stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", ports[0])))
 	}
-	nodes[0], err = CreateNode(util.OpenPort(ports[0]), nil, config, new(statemachines.HashMachine), stableStore)
+	boltPath := filepath.Join(os.TempDir(), fmt.Sprintf("kvstore_%d", rand.Int()))
+	kvstore, err := statemachines.NewKVStoreMachine(boltPath)
+	if err != nil {
+		panic(err)
+	}
+	if kvstore == nil {
+		panic("kvstore should not be nil")
+	}
+	nodes[0], err = CreateNode(util.OpenPort(ports[0]), nil, config, kvstore, stableStore)
 	if err != nil {
 		util.Error.Printf("Error creating first node: %v", err)
 		return nodes, err
@@ -76,7 +102,15 @@ func CreateDefinedLocalCluster(config *raft.Config, ports []int) ([]*Node, error
 		} else {
 			stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", ports[i])))
 		}
-		nodes[i], err = CreateNode(util.OpenPort(ports[i]), nodes[0].Self, config, new(statemachines.HashMachine), stableStore)
+		boltPath := filepath.Join(os.TempDir(), fmt.Sprintf("kvstore_%d", rand.Int()))
+		kvstore, err := statemachines.NewKVStoreMachine(boltPath)
+		if err != nil {
+			panic(err)
+		}
+		if kvstore == nil {
+			panic("kvstore should not be nil")
+		}
+		nodes[i], err = CreateNode(util.OpenPort(ports[i]), nodes[0].Self, config, kvstore, stableStore)
 		if err != nil {
 			util.Error.Printf("Error creating %v-th node: %v", i, err)
 			return nil, err
@@ -84,4 +118,18 @@ func CreateDefinedLocalCluster(config *raft.Config, ports []int) ([]*Node, error
 	}
 
 	return nodes, nil
+}
+
+// CleanupReplicationGroup exits each node and removes its logs.
+// Given a slice of Nodes representing a replication group,
+func CleanupReplicationGroup(nodes []*Node) {
+	for i := 0; i < len(nodes); i++ {
+		node := nodes[i]
+		node.server.Stop()
+		go func(node *Node) {
+			node.GracefulExit()
+			node.raft.RemoveLogs()
+		}(node)
+	}
+	time.Sleep(5 * time.Second)
 }
