@@ -26,14 +26,14 @@ func (r *Node) doCandidate() stateFunction {
 
 		case clientMsg := <-r.clientRequest:
 			clientMsg.reply <- rpc.ClientReply{
-				Status:     2,
+				Status:     rpc.ClientStatus_ELECTION_IN_PROGRESS,
 				Response:   nil,
 				LeaderHint: r.Self,
 			}
 
 		case registerMsg := <-r.registerClient:
 			registerMsg.reply <- rpc.RegisterClientReply{
-				Status:     2,
+				Status:     rpc.ClientStatus_ELECTION_IN_PROGRESS,
 				ClientId:   0,
 				LeaderHint: r.Self,
 			}

@@ -51,9 +51,11 @@ func (r *Node) doFollower() stateFunction {
 				return nil
 			}
 		case clientMsg := <-r.clientRequest:
+			clientReply.LeaderHint = r.Leader
 			clientMsg.reply <- clientReply
 
 		case registerMsg := <-r.registerClient:
+			registerReply.LeaderHint = r.Leader
 			registerMsg.reply <- registerReply
 
 		case voteMsg := <-r.requestVote:
