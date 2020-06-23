@@ -67,11 +67,6 @@ func DefaultRegisterClientCaller(ctx context.Context, req *rpc.RegisterClientReq
 	return &rpc.RegisterClientReply{}, nil
 }
 
-// Default implementation. Returns empty, since it's not useful for testing student code.
-func DefaultClientRequestCaller(ctx context.Context, req *rpc.ClientRequest) (*rpc.ClientReply, error) {
-	return &rpc.ClientReply{}, nil
-}
-
 // Error implementation. Always returns a MockError.
 func ErrorJoinCaller(ctx context.Context, r *rpc.RemoteNode) (*rpc.Ok, error) {
 	return nil, MockError
@@ -97,11 +92,6 @@ func ErrorRegisterClientCaller(ctx context.Context, req *rpc.RegisterClientReque
 	return nil, MockError
 }
 
-// Error implementation. Always returns a MockError.
-func ErrorClientRequestCaller(ctx context.Context, req *rpc.ClientRequest) (*rpc.ClientReply, error) {
-	return nil, MockError
-}
-
 type MockRaft struct {
 	// implements RaftRPCServer
 	Join           func(ctx context.Context, r *rpc.RemoteNode) (*rpc.Ok, error)
@@ -109,7 +99,6 @@ type MockRaft struct {
 	AppendEntries  func(ctx context.Context, req *rpc.AppendEntriesRequest) (*rpc.AppendEntriesReply, error)
 	RequestVote    func(ctx context.Context, req *rpc.RequestVoteRequest) (*rpc.RequestVoteReply, error)
 	RegisterClient func(ctx context.Context, req *rpc.RegisterClientRequest) (*rpc.RegisterClientReply, error)
-	ClientRequest  func(ctx context.Context, req *rpc.ClientRequest) (*rpc.ClientReply, error)
 
 	RemoteSelf        *rpc.RemoteNode
 	server            *grpc.Server
@@ -140,10 +129,6 @@ func (m *MockRaft) RequestVoteCaller(ctx context.Context, req *rpc.RequestVoteRe
 
 func (m *MockRaft) RegisterClientCaller(ctx context.Context, req *rpc.RegisterClientRequest) (*rpc.RegisterClientReply, error) {
 	return m.RegisterClient(ctx, req)
-}
-
-func (m *MockRaft) ClientRequestCaller(ctx context.Context, req *rpc.ClientRequest) (*rpc.ClientReply, error) {
-	return m.ClientRequest(ctx, req)
 }
 
 // Stop the grpc server at this MockRaft
@@ -265,7 +250,6 @@ func NewDefaultMockRaft(studentRaft *Node) (m *MockRaft, err error) {
 		AppendEntries:  DefaultAppendEntriesCaller,
 		RequestVote:    DefaultRequestVoteCaller,
 		RegisterClient: DefaultRegisterClientCaller,
-		ClientRequest:  DefaultClientRequestCaller,
 
 		StudentRaft: studentRaft,
 	}

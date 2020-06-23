@@ -108,7 +108,7 @@ func (c *Client) sendRequest(command uint64, data []byte) ([]byte, error) {
 	var reply *rpc.ClientReply
 	var err error
 	retries := 0
-LOOP:
+
 	for retries < MaxRetries {
 		reply, err = c.Leader.ClientRequestRPC(&request)
 		if err != nil {
@@ -119,7 +119,7 @@ LOOP:
 		case rpc.ClientStatus_OK:
 			fmt.Printf("%v is the leader\n", c.Leader)
 			fmt.Printf("Request returned \"%v\"\n", reply.Response)
-			break LOOP
+			return reply.GetResponse(), nil
 		case rpc.ClientStatus_REQ_FAILED:
 			fmt.Printf("Request failed: %v\n", reply.Response)
 			fmt.Println("Retrying...")
@@ -138,5 +138,5 @@ LOOP:
 		}
 	}
 
-	return reply.GetResponse(), nil
+	return nil, errors.New("request failed")
 }

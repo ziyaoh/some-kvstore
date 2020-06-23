@@ -95,6 +95,12 @@ Commands for other replication group
     - [ ] optimization
         - [ ] membership change
         - [ ] log compaction
+    - [ ] client request idempotency cache and cleaning up
+        - [ ] implementation
+            - [ ] add finished seq list in rpc.ClientRequest and in LogEntry
+            - [ ] remove finished request when processing LogEntry
+            - [ ] client keeps track of finished request and piggyback in following requests
+        - [ ] test
 - [x] redesign and refactor RPC calls flow
 - [ ] single replication group
     - [x] KV store as state machine
