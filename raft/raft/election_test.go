@@ -4,12 +4,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ziyaoh/some-kvstore/rpc"
+	"github.com/ziyaoh/some-kvstore/util"
 	"golang.org/x/net/context"
 )
 
 // Test making sure follower would behave correctly when handling RequestVote
 func TestVote_Follower(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 	config := DefaultConfig()
 
 	t.Run("Handle RequestVote with Stale Term", func(t *testing.T) {
@@ -34,7 +36,7 @@ func TestVote_Follower(t *testing.T) {
 		time.Sleep(1 * time.Second)
 
 		// make sure the client get the correct response while registering itself with a candidate
-		reply, _ := followers[0].RequestVoteCaller(context.Background(), &RequestVoteRequest{
+		reply, _ := followers[0].RequestVoteCaller(context.Background(), &rpc.RequestVoteRequest{
 			Term:         uint64(1),
 			Candidate:    followers[1].Self,
 			LastLogIndex: uint64(3),
@@ -65,17 +67,17 @@ func TestVote_Follower(t *testing.T) {
 		}
 
 		leader.leaderMutex.Lock()
-		logEntry := &LogEntry{
+		logEntry := &rpc.LogEntry{
 			Index:  leader.LastLogIndex() + 1,
 			TermId: leader.GetCurrentTerm(),
-			Type:   CommandType_NOOP,
+			Type:   rpc.CommandType_NOOP,
 			Data:   []byte{1, 2, 3, 4},
 		}
 		leader.StoreLog(logEntry)
 		leader.leaderMutex.Unlock()
 		time.Sleep(1 * time.Second)
 
-		reply, _ := followers[0].RequestVoteCaller(context.Background(), &RequestVoteRequest{
+		reply, _ := followers[0].RequestVoteCaller(context.Background(), &rpc.RequestVoteRequest{
 			Term:         uint64(3),
 			Candidate:    followers[1].Self,
 			LastLogIndex: uint64(1),
@@ -85,7 +87,7 @@ func TestVote_Follower(t *testing.T) {
 			t.Fatal("Should've denied vote")
 		}
 
-		reply, _ = followers[0].RequestVoteCaller(context.Background(), &RequestVoteRequest{
+		reply, _ = followers[0].RequestVoteCaller(context.Background(), &rpc.RequestVoteRequest{
 			Term:         uint64(3),
 			Candidate:    followers[1].Self,
 			LastLogIndex: uint64(2),
@@ -99,7 +101,7 @@ func TestVote_Follower(t *testing.T) {
 
 // Test making sure candidate would behave correctly when handling RequestVote
 func TestVote_Candidate(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 	config := DefaultConfig()
 	config.ClusterSize = 5
 
@@ -118,10 +120,10 @@ func TestVote_Candidate(t *testing.T) {
 	}
 	leader.setCurrentTerm(3)
 	leader.leaderMutex.Lock()
-	logEntry := &LogEntry{
+	logEntry := &rpc.LogEntry{
 		Index:  leader.LastLogIndex() + 1,
 		TermId: leader.GetCurrentTerm(),
-		Type:   CommandType_NOOP,
+		Type:   rpc.CommandType_NOOP,
 		Data:   []byte{1, 2, 3, 4},
 	}
 	leader.StoreLog(logEntry)
@@ -145,7 +147,7 @@ func TestVote_Candidate(t *testing.T) {
 	t.Run("Handle competing RequestVote with Stale Term", func(t *testing.T) {
 
 		time.Sleep(500 * time.Millisecond)
-		reply, _ := followers[0].RequestVoteCaller(context.Background(), &RequestVoteRequest{
+		reply, _ := followers[0].RequestVoteCaller(context.Background(), &rpc.RequestVoteRequest{
 			Term:         uint64(1),
 			Candidate:    followers[1].Self,
 			LastLogIndex: uint64(3),
@@ -159,7 +161,7 @@ func TestVote_Candidate(t *testing.T) {
 	t.Run("Handle competing RequestVote with Higher Term and Out-of-date log", func(t *testing.T) {
 
 		time.Sleep(500 * time.Millisecond)
-		reply, _ := followers[0].RequestVoteCaller(context.Background(), &RequestVoteRequest{
+		reply, _ := followers[0].RequestVoteCaller(context.Background(), &rpc.RequestVoteRequest{
 			Term:         uint64(100),
 			Candidate:    followers[1].Self,
 			LastLogIndex: uint64(1),
@@ -173,7 +175,7 @@ func TestVote_Candidate(t *testing.T) {
 	t.Run("Handle competing RequestVote with Higher Term and Up-to-date log", func(t *testing.T) {
 
 		time.Sleep(500 * time.Millisecond)
-		reply, _ := followers[0].RequestVoteCaller(context.Background(), &RequestVoteRequest{
+		reply, _ := followers[0].RequestVoteCaller(context.Background(), &rpc.RequestVoteRequest{
 			Term:         uint64(200),
 			Candidate:    followers[1].Self,
 			LastLogIndex: uint64(2),
@@ -187,7 +189,7 @@ func TestVote_Candidate(t *testing.T) {
 
 // Test making sure candidate would behave correctly when handling RequestVote
 func TestVote_Leader(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 	config := DefaultConfig()
 	cluster, err := CreateLocalCluster(config)
 	defer cleanupCluster(cluster)
@@ -208,10 +210,10 @@ func TestVote_Leader(t *testing.T) {
 	}
 	leader.setCurrentTerm(3)
 	leader.leaderMutex.Lock()
-	logEntry := &LogEntry{
+	logEntry := &rpc.LogEntry{
 		Index:  leader.LastLogIndex() + 1,
 		TermId: leader.GetCurrentTerm(),
-		Type:   CommandType_NOOP,
+		Type:   rpc.CommandType_NOOP,
 		Data:   []byte{1, 2, 3, 4},
 	}
 	leader.StoreLog(logEntry)
@@ -220,7 +222,7 @@ func TestVote_Leader(t *testing.T) {
 	t.Run("Leader handle competing RequestVote with Stale Term", func(t *testing.T) {
 
 		time.Sleep(500 * time.Millisecond)
-		reply, _ := leader.RequestVoteCaller(context.Background(), &RequestVoteRequest{
+		reply, _ := leader.RequestVoteCaller(context.Background(), &rpc.RequestVoteRequest{
 			Term:         uint64(1),
 			Candidate:    follower.Self,
 			LastLogIndex: uint64(3),
@@ -237,7 +239,7 @@ func TestVote_Leader(t *testing.T) {
 	t.Run("Leader handle competing RequestVote with Higher Term and Out-of-date log", func(t *testing.T) {
 
 		time.Sleep(500 * time.Millisecond)
-		reply, _ := leader.RequestVoteCaller(context.Background(), &RequestVoteRequest{
+		reply, _ := leader.RequestVoteCaller(context.Background(), &rpc.RequestVoteRequest{
 			Term:         uint64(100),
 			Candidate:    follower.Self,
 			LastLogIndex: uint64(1),
@@ -259,7 +261,7 @@ func TestVote_Leader(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		reply, _ := leader.RequestVoteCaller(context.Background(), &RequestVoteRequest{
+		reply, _ := leader.RequestVoteCaller(context.Background(), &rpc.RequestVoteRequest{
 			Term:         uint64(200),
 			Candidate:    follower.Self,
 			LastLogIndex: uint64(3),

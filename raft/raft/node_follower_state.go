@@ -1,24 +1,24 @@
 package raft
 
-import "math"
+import (
+	"math"
+
+	"github.com/ziyaoh/some-kvstore/rpc"
+)
 
 // doFollower implements the logic for a Raft node in the follower state.
-func (r *RaftNode) doFollower() stateFunction {
+func (r *Node) doFollower() stateFunction {
 	r.Out("Transitioning to FollowerState")
 	r.State = FollowerState
 
-	// TODO: Students should implement this method
-	// Hint: perform any initial work, and then consider what a node in the
-	// follower state should do when it receives an incoming message on every
-	// possible channel.
-	clientReply := ClientReply{
-		Status:     1,
+	clientReply := rpc.ClientReply{
+		Status:     rpc.ClientStatus_NOT_LEADER,
 		Response:   nil,
 		LeaderHint: r.Leader,
 	}
 
-	registerReply := RegisterClientReply{
-		Status:     1,
+	registerReply := rpc.RegisterClientReply{
+		Status:     rpc.ClientStatus_NOT_LEADER,
 		ClientId:   0,
 		LeaderHint: r.Leader,
 	}
@@ -32,8 +32,15 @@ func (r *RaftNode) doFollower() stateFunction {
 	for _, replyToClient := range r.requestsByCacheID {
 		replyToClient <- clientReply
 	}
-	r.requestsByCacheID = make(map[string]chan ClientReply)
+	r.requestsByCacheID = make(map[string]chan rpc.ClientReply)
 	r.requestsMutex.Unlock()
+
+	r.registrationsMutex.Lock()
+	for _, replyToClient := range r.registrationsByLogIndex {
+		replyToClient <- registerReply
+	}
+	r.registrationsByLogIndex = make(map[uint64]chan rpc.RegisterClientReply)
+	r.registrationsMutex.Unlock()
 
 	timeout := randomTimeout(r.config.ElectionTimeout)
 
@@ -44,9 +51,11 @@ func (r *RaftNode) doFollower() stateFunction {
 				return nil
 			}
 		case clientMsg := <-r.clientRequest:
+			clientReply.LeaderHint = r.Leader
 			clientMsg.reply <- clientReply
 
 		case registerMsg := <-r.registerClient:
+			registerReply.LeaderHint = r.Leader
 			registerMsg.reply <- registerReply
 
 		case voteMsg := <-r.requestVote:
@@ -71,13 +80,12 @@ func (r *RaftNode) doFollower() stateFunction {
 // node in a follower, candidate, or leader state. It returns two booleans:
 // - resetTimeout is true if the follower node should reset the election timeout
 // - fallback is true if the node should become a follower again
-func (r *RaftNode) handleAppendEntries(msg AppendEntriesMsg) (resetTimeout, fallback bool) {
-	// TODO: Students should implement this method
+func (r *Node) handleAppendEntries(msg AppendEntriesMsg) (resetTimeout, fallback bool) {
 	request := msg.request
 	reply := msg.reply
 	// If a server receives a request with a stale term number, it rejects the request (&5.1)
 	if r.GetCurrentTerm() > request.GetTerm() {
-		reply <- AppendEntriesReply{Term: r.GetCurrentTerm(), Success: false}
+		reply <- rpc.AppendEntriesReply{Term: r.GetCurrentTerm(), Success: false}
 		return false, false
 	}
 
@@ -88,7 +96,7 @@ func (r *RaftNode) handleAppendEntries(msg AppendEntriesMsg) (resetTimeout, fall
 	}
 	// Reply false if log doesn’t contain an entry at prevLogIndex whose term matches prevLogTerm (§5.3)
 	if request.PrevLogIndex > 0 && (r.GetLog(request.PrevLogIndex) == nil || r.GetLog(request.PrevLogIndex).GetTermId() != request.GetPrevLogTerm()) {
-		reply <- AppendEntriesReply{Term: r.GetCurrentTerm(), Success: false}
+		reply <- rpc.AppendEntriesReply{Term: r.GetCurrentTerm(), Success: false}
 		return true, true
 	}
 	// Found a log entry whose term and index are matched with prevLogIndex and preLogTerm
@@ -112,16 +120,16 @@ func (r *RaftNode) handleAppendEntries(msg AppendEntriesMsg) (resetTimeout, fall
 			r.processLogEntry(*r.GetLog(r.lastApplied))
 		}
 	}
-	reply <- AppendEntriesReply{Term: r.GetCurrentTerm(), Success: true}
+	reply <- rpc.AppendEntriesReply{Term: r.GetCurrentTerm(), Success: true}
 	return true, true
 }
 
-func (r *RaftNode) handleRequestVote(msg RequestVoteMsg) (resetTimeout bool) {
+func (r *Node) handleRequestVote(msg RequestVoteMsg) (resetTimeout bool) {
 	request := msg.request
 	reply := msg.reply
 	// If a server receives a request with a stale term number, it rejects the request (&5.1)
 	if r.GetCurrentTerm() > request.GetTerm() {
-		reply <- RequestVoteReply{Term: r.GetCurrentTerm(), VoteGranted: false}
+		reply <- rpc.RequestVoteReply{Term: r.GetCurrentTerm(), VoteGranted: false}
 		return false
 	} else if r.GetCurrentTerm() < request.GetTerm() {
 		r.setCurrentTerm(request.GetTerm())
@@ -134,9 +142,9 @@ func (r *RaftNode) handleRequestVote(msg RequestVoteMsg) (resetTimeout bool) {
 		(lastTerm < request.GetLastLogTerm() ||
 			(lastTerm == request.GetLastLogTerm() && r.LastLogIndex() <= request.GetLastLogIndex())) {
 		r.setVotedFor(request.GetCandidate().GetId())
-		reply <- RequestVoteReply{Term: r.GetCurrentTerm(), VoteGranted: true}
+		reply <- rpc.RequestVoteReply{Term: r.GetCurrentTerm(), VoteGranted: true}
 		return true
 	}
-	reply <- RequestVoteReply{Term: r.GetCurrentTerm(), VoteGranted: false}
+	reply <- rpc.RequestVoteReply{Term: r.GetCurrentTerm(), VoteGranted: false}
 	return false
 }

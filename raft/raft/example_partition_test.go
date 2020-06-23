@@ -4,10 +4,13 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/ziyaoh/some-kvstore/rpc"
+	"github.com/ziyaoh/some-kvstore/util"
 )
 
 func TestPartition(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 
 	config := DefaultConfig()
 	config.ClusterSize = 5
@@ -24,7 +27,7 @@ func TestPartition(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	followers := make([]*RaftNode, 0)
+	followers := make([]*Node, 0)
 	for _, node := range cluster {
 		if node != leader {
 			followers = append(followers, node)
@@ -59,10 +62,10 @@ func TestPartition(t *testing.T) {
 
 	// add a new log entry to the old leader; should NOT be replicated
 	leader.leaderMutex.Lock()
-	logEntry := &LogEntry{
+	logEntry := &rpc.LogEntry{
 		Index:  leader.LastLogIndex() + 1,
 		TermId: leader.GetCurrentTerm(),
-		Type:   CommandType_NOOP,
+		Type:   rpc.CommandType_NOOP,
 		Data:   []byte{1, 2, 3, 4},
 	}
 	leader.StoreLog(logEntry)
@@ -70,10 +73,10 @@ func TestPartition(t *testing.T) {
 
 	// add a new log entry to the new leader; SHOULD be replicated
 	newLeader.leaderMutex.Lock()
-	logEntry = &LogEntry{
+	logEntry = &rpc.LogEntry{
 		Index:  newLeader.LastLogIndex() + 1,
 		TermId: newLeader.GetCurrentTerm(),
-		Type:   CommandType_NOOP,
+		Type:   rpc.CommandType_NOOP,
 		Data:   []byte{5, 6, 7, 8},
 	}
 	newLeader.StoreLog(logEntry)

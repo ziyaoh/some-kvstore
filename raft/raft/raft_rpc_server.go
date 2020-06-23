@@ -1,36 +1,37 @@
 package raft
 
 import (
+	"github.com/ziyaoh/some-kvstore/rpc"
 	"golang.org/x/net/context"
 )
 
 // JoinCaller is called through GRPC to execute a join request.
-func (local *RaftNode) JoinCaller(ctx context.Context, r *RemoteNode) (*Ok, error) {
+func (local *Node) JoinCaller(ctx context.Context, r *rpc.RemoteNode) (*rpc.Ok, error) {
 	// Check if the network policy prevents incoming requests from the requesting node
 	if local.NetworkPolicy.IsDenied(*r, *local.Self) {
-		return nil, ErrorNetworkPolicyDenied
+		return nil, rpc.ErrorNetworkPolicyDenied
 	}
 
 	err := local.Join(r)
-	return &Ok{Ok: err == nil}, err
+	return &rpc.Ok{Ok: err == nil}, err
 }
 
 // StartNodeCaller is called through GRPC to execute a start node request.
-func (local *RaftNode) StartNodeCaller(ctx context.Context, req *StartNodeRequest) (*Ok, error) {
+func (local *Node) StartNodeCaller(ctx context.Context, req *rpc.StartNodeRequest) (*rpc.Ok, error) {
 	// Check if the network policy prevents incoming requests from the requesting node
 	if local.NetworkPolicy.IsDenied(*req.FromNode, *local.Self) {
-		return nil, ErrorNetworkPolicyDenied
+		return nil, rpc.ErrorNetworkPolicyDenied
 	}
 
 	err := local.StartNode(req)
-	return &Ok{Ok: err == nil}, err
+	return &rpc.Ok{Ok: err == nil}, err
 }
 
 // AppendEntriesCaller is called through GRPC to respond to an append entries request.
-func (local *RaftNode) AppendEntriesCaller(ctx context.Context, req *AppendEntriesRequest) (*AppendEntriesReply, error) {
+func (local *Node) AppendEntriesCaller(ctx context.Context, req *rpc.AppendEntriesRequest) (*rpc.AppendEntriesReply, error) {
 	// Check if the network policy prevents incoming requests from the requesting node
 	if local.NetworkPolicy.IsDenied(*req.Leader, *local.Self) {
-		return nil, ErrorNetworkPolicyDenied
+		return nil, rpc.ErrorNetworkPolicyDenied
 	}
 
 	reply := local.AppendEntries(req)
@@ -39,10 +40,10 @@ func (local *RaftNode) AppendEntriesCaller(ctx context.Context, req *AppendEntri
 }
 
 // RequestVoteCaller is called through GRPC to respond to a vote request.
-func (local *RaftNode) RequestVoteCaller(ctx context.Context, req *RequestVoteRequest) (*RequestVoteReply, error) {
+func (local *Node) RequestVoteCaller(ctx context.Context, req *rpc.RequestVoteRequest) (*rpc.RequestVoteReply, error) {
 	// Check if the network policy prevents incoming requests from the requesting node
 	if local.NetworkPolicy.IsDenied(*req.Candidate, *local.Self) {
-		return nil, ErrorNetworkPolicyDenied
+		return nil, rpc.ErrorNetworkPolicyDenied
 	}
 
 	reply := local.RequestVote(req)
@@ -50,17 +51,11 @@ func (local *RaftNode) RequestVoteCaller(ctx context.Context, req *RequestVoteRe
 	return &reply, nil
 }
 
+// TODO: move to shard master
 // RegisterClientCaller is called through GRPC to respond to a client
 // registration request.
-func (local *RaftNode) RegisterClientCaller(ctx context.Context, req *RegisterClientRequest) (*RegisterClientReply, error) {
-	reply := local.RegisterClient(req)
+// func (local *Node) RegisterClientCaller(ctx context.Context, req *RegisterClientRequest) (*RegisterClientReply, error) {
+// 	reply := local.RegisterClient(req)
 
-	return &reply, nil
-}
-
-// ClientRequestCaller is called through GRPC to respond to a client request.
-func (local *RaftNode) ClientRequestCaller(ctx context.Context, req *ClientRequest) (*ClientReply, error) {
-	reply := local.ClientRequest(req)
-
-	return &reply, nil
-}
+// 	return &reply, nil
+// }

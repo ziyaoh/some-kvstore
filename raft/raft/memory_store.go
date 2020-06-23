@@ -3,6 +3,8 @@ package raft
 import (
 	"sort"
 	"sync"
+
+	"github.com/ziyaoh/some-kvstore/rpc"
 )
 
 // MemoryStore implements the StableStore interface and serves as a storage option for raft
@@ -10,7 +12,7 @@ type MemoryStore struct {
 	state   map[string][]byte
 	stateMu sync.RWMutex
 
-	logs   map[uint64]*LogEntry
+	logs   map[uint64]*rpc.LogEntry
 	logsMu sync.RWMutex
 
 	lastLogIndex uint64
@@ -20,7 +22,7 @@ type MemoryStore struct {
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
 		state:        make(map[string][]byte),
-		logs:         make(map[uint64]*LogEntry),
+		logs:         make(map[uint64]*rpc.LogEntry),
 		lastLogIndex: 0,
 	}
 }
@@ -67,8 +69,8 @@ func (store *MemoryStore) GetUint64(key []byte) uint64 {
 	return 0
 }
 
-// StoreLog grabs the next log index and stores a LogEntry into Bolt
-func (store *MemoryStore) StoreLog(log *LogEntry) error {
+// StoreLog grabs the next log index and stores a rpc.LogEntry into Bolt
+func (store *MemoryStore) StoreLog(log *rpc.LogEntry) error {
 	store.logsMu.Lock()
 	defer store.logsMu.Unlock()
 
@@ -82,8 +84,8 @@ func (store *MemoryStore) StoreLog(log *LogEntry) error {
 	return nil
 }
 
-// GetLog retrieves a LogEntry at a specific log index from Bolt
-func (store *MemoryStore) GetLog(index uint64) *LogEntry {
+// GetLog retrieves a rpc.LogEntry at a specific log index from Bolt
+func (store *MemoryStore) GetLog(index uint64) *rpc.LogEntry {
 	store.logsMu.RLock()
 	defer store.logsMu.RUnlock()
 
@@ -117,8 +119,8 @@ func (store *MemoryStore) TruncateLog(index uint64) error {
 }
 
 // AllLogs returns all logs in ascending order. Used for testing purposes.
-func (store *MemoryStore) AllLogs() []*LogEntry {
-	var res []*LogEntry
+func (store *MemoryStore) AllLogs() []*rpc.LogEntry {
+	var res []*rpc.LogEntry
 
 	for _, log := range store.logs {
 		res = append(res, log)

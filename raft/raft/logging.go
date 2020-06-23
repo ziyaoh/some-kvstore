@@ -3,55 +3,25 @@ package raft
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
-	"log"
-	"os"
 
 	"github.com/fatih/color"
-	"google.golang.org/grpc/grpclog"
+	"github.com/ziyaoh/some-kvstore/util"
 )
 
-// Debug is medium-risk logger
-var Debug *log.Logger
-
-// Out is low-risk logger
-var Out *log.Logger
-
-// Error is high-risk logger
-var Error *log.Logger
-
-// Initialize the loggers
-func init() {
-	Debug = log.New(ioutil.Discard, "", log.Ltime|log.Lshortfile)
-	Out = log.New(os.Stdout, "DEBUG: ", log.Ltime|log.Lshortfile)
-	Error = log.New(os.Stderr, "ERROR: ", log.Ltime|log.Lshortfile)
-
-	grpclog.SetLogger(log.New(ioutil.Discard, "", 0))
-}
-
-// SetDebug turns printing debug strings on or off
-func SetDebug(enabled bool) {
-	if enabled {
-		Debug.SetOutput(os.Stdout)
-	} else {
-		Debug.SetOutput(ioutil.Discard)
-	}
-}
-
 // Out prints to standard output, prefaced with time and filename
-func (r *RaftNode) Out(formatString string, args ...interface{}) {
-	Out.Output(2, fmt.Sprintf("(%v/%v) %v\n", r.Self, r.State, fmt.Sprintf(formatString, args...)))
+func (r *Node) Out(formatString string, args ...interface{}) {
+	util.Out.Output(2, fmt.Sprintf("(%v/%v) %v\n", r.Self, r.State, fmt.Sprintf(formatString, args...)))
 }
 
 // Debug prints to standard output if SetDebug was called with enabled=true, prefaced with time and filename
-func (r *RaftNode) Debug(formatString string, args ...interface{}) {
-	Debug.Output(2, fmt.Sprintf("(%v/%v) %v\n", r.Self, r.State, fmt.Sprintf(formatString, args...)))
+func (r *Node) Debug(formatString string, args ...interface{}) {
+	util.Debug.Output(2, fmt.Sprintf("(%v/%v) %v\n", r.Self, r.State, fmt.Sprintf(formatString, args...)))
 }
 
 // Error prints to standard error, prefaced with "ERROR: ", time, and filename
-func (r *RaftNode) Error(formatString string, args ...interface{}) {
+func (r *Node) Error(formatString string, args ...interface{}) {
 	color.Set(color.FgRed)
-	Error.Output(2, fmt.Sprintf("(%v/%v) %v\n", r.Self, r.State, fmt.Sprintf(formatString, args...)))
+	util.Error.Output(2, fmt.Sprintf("(%v/%v) %v\n", r.Self, r.State, fmt.Sprintf(formatString, args...)))
 	color.Unset()
 }
 
@@ -70,12 +40,12 @@ func (s NodeState) String() string {
 	}
 }
 
-func (r *RaftNode) String() string {
-	return fmt.Sprintf("RaftNode{Self: %v, State: %v}", r.Self, r.State)
+func (r *Node) String() string {
+	return fmt.Sprintf("Node{Self: %v, State: %v}", r.Self, r.State)
 }
 
 // FormatState returns a string representation of the Raft node's state
-func (r *RaftNode) FormatState() string {
+func (r *Node) FormatState() string {
 	var buffer bytes.Buffer
 	buffer.WriteString(fmt.Sprintf("Current node (%v): state:\n", r.Self))
 
@@ -103,9 +73,9 @@ func (r *RaftNode) FormatState() string {
 }
 
 // FormatLogCache returns a string representation of the Raft node's log cache
-func (r *RaftNode) FormatLogCache() string {
+func (r *Node) FormatLogCache() string {
 	var buffer bytes.Buffer
-	buffer.WriteString(fmt.Sprintf("RaftNode %v LogCache:\n", r.Self))
+	buffer.WriteString(fmt.Sprintf("Node %v LogCache:\n", r.Self))
 
 	for i := uint64(0); i <= r.LastLogIndex(); i++ {
 		log := r.GetLog(i)
@@ -118,7 +88,7 @@ func (r *RaftNode) FormatLogCache() string {
 }
 
 // FormatNodeListIds returns a string representation of IDs the list of nodes in the cluster
-func (r *RaftNode) FormatNodeListIds(ctx string) string {
+func (r *Node) FormatNodeListIds(ctx string) string {
 	var buffer bytes.Buffer
 	buffer.WriteString(fmt.Sprintf("%v (%v) r.NodeList = [", ctx, r.Self))
 

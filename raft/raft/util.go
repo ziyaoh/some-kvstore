@@ -1,13 +1,9 @@
 package raft
 
 import (
-	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
-	"math/big"
 	"math/rand"
-	"net"
-	"os"
 	"syscall"
 	"time"
 )
@@ -21,32 +17,8 @@ const HighPort int = 61000
 // WinEADDRINUSE to support windows machines
 const WinEADDRINUSE = syscall.Errno(10048)
 
-// OpenPort creates a listener on the specified port.
-func OpenPort(port int) net.Listener {
-	hostname, err := os.Hostname()
-	if err != nil {
-		panic(err)
-	}
-	listener, err := net.Listen("tcp4", fmt.Sprintf("%v:%v", hostname, port))
-	if err != nil {
-		panic(err)
-	}
-	return listener
-}
-
-// AddrToID converts a network address to a Raft node ID of specified length.
-func AddrToID(addr string, length int) string {
-	h := sha1.New()
-	h.Write([]byte(addr))
-	v := h.Sum(nil)
-	keyInt := big.Int{}
-	keyInt.SetBytes(v[:length])
-	return keyInt.String()
-}
-
 // randomTimeout uses time.After to create a timeout between minTimeout and 2x that.
 func randomTimeout(minTimeout time.Duration) <-chan time.Time {
-	// TODO: Students should implement this method
 	random := rand.Int63n(minTimeout.Nanoseconds())
 	// fmt.Printf("RANDOM TIMEOUT: %d + %d\n", minTimeout.Nanoseconds(), random)
 	return time.After(time.Duration(minTimeout.Nanoseconds() + random))

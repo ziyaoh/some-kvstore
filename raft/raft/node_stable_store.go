@@ -3,7 +3,8 @@ package raft
 import (
 	"errors"
 
-	"github.com/ziyaoh/some-kvstore/raft/util"
+	"github.com/ziyaoh/some-kvstore/rpc"
+	"github.com/ziyaoh/some-kvstore/util"
 )
 
 // ////////////////////////////////////////////////////////////////////////////////
@@ -11,17 +12,17 @@ import (
 // ////////////////////////////////////////////////////////////////////////////////
 
 // initStore stores zero-index log
-func (r *RaftNode) initStableStore() {
-	r.StoreLog(&LogEntry{
+func (r *Node) initStableStore() {
+	r.StoreLog(&rpc.LogEntry{
 		Index:  0,
 		TermId: 0,
-		Type:   CommandType_NOOP,
+		Type:   rpc.CommandType_NOOP,
 		Data:   []byte{},
 	})
 }
 
 // setCurrentTerm sets the current node's term and writes log to disk
-func (r *RaftNode) setCurrentTerm(newTerm uint64) {
+func (r *Node) setCurrentTerm(newTerm uint64) {
 	currentTerm := r.GetCurrentTerm()
 	if newTerm != currentTerm {
 		r.Out("Setting current term from %v -> %v", currentTerm, newTerm)
@@ -34,12 +35,12 @@ func (r *RaftNode) setCurrentTerm(newTerm uint64) {
 }
 
 // GetCurrentTerm returns the current node's term
-func (r *RaftNode) GetCurrentTerm() uint64 {
+func (r *Node) GetCurrentTerm() uint64 {
 	return r.stableStore.GetUint64([]byte("current_term"))
 }
 
 // setVotedFor sets the candidateId for which the current node voted for, and writes log to disk
-func (r *RaftNode) setVotedFor(candidateID string) {
+func (r *Node) setVotedFor(candidateID string) {
 	err := r.stableStore.SetBytes([]byte("voted_for"), []byte(candidateID))
 	if err != nil {
 		r.Error("Unable to flush new votedFor to disk: %v", err)
@@ -48,12 +49,12 @@ func (r *RaftNode) setVotedFor(candidateID string) {
 }
 
 // GetVotedFor returns the Id of the candidate that the current node voted for
-func (r *RaftNode) GetVotedFor() string {
+func (r *Node) GetVotedFor() string {
 	return string(r.stableStore.GetBytes([]byte("voted_for")))
 }
 
 // CacheClientReply caches the given client response with the provided cache ID.
-func (r *RaftNode) CacheClientReply(cacheID string, reply ClientReply) error {
+func (r *Node) CacheClientReply(cacheID string, reply rpc.ClientReply) error {
 	key := []byte("cacheID:" + cacheID)
 	if value := r.stableStore.GetBytes(key); value != nil {
 		return errors.New("request with the same clientId and seqNum already exists")
@@ -74,12 +75,12 @@ func (r *RaftNode) CacheClientReply(cacheID string, reply ClientReply) error {
 // GetCachedReply checks if the given client request has a cached response.
 // It returns the cached response (or nil) and a boolean indicating whether or not
 // a cached response existed.
-func (r *RaftNode) GetCachedReply(clientReq ClientRequest) (*ClientReply, bool) {
+func (r *Node) GetCachedReply(clientReq rpc.ClientRequest) (*rpc.ClientReply, bool) {
 	cacheID := createCacheID(clientReq.ClientId, clientReq.SequenceNum)
 	key := []byte("cacheID:" + cacheID)
 
 	if value := r.stableStore.GetBytes(key); value != nil {
-		var reply ClientReply
+		var reply rpc.ClientReply
 		util.DecodeMsgPack(value, &reply)
 		return &reply, true
 	}
@@ -87,12 +88,12 @@ func (r *RaftNode) GetCachedReply(clientReq ClientRequest) (*ClientReply, bool) 
 }
 
 // LastLogIndex returns index of last log. If no log exists, it returns 0.
-func (r *RaftNode) LastLogIndex() uint64 {
+func (r *Node) LastLogIndex() uint64 {
 	return r.stableStore.LastLogIndex()
 }
 
 // StoreLog appends log to log entry. Should always succeed
-func (r *RaftNode) StoreLog(log *LogEntry) {
+func (r *Node) StoreLog(log *rpc.LogEntry) {
 	err := r.stableStore.StoreLog(log)
 	if err != nil {
 		panic(err)
@@ -100,12 +101,12 @@ func (r *RaftNode) StoreLog(log *LogEntry) {
 }
 
 // GetLog gets a log at a specific index. If log does not exist, GetLog returns nil
-func (r *RaftNode) GetLog(index uint64) *LogEntry {
+func (r *Node) GetLog(index uint64) *rpc.LogEntry {
 	return r.stableStore.GetLog(index)
 }
 
 // TruncateLog deletes logs from index to end of logs. Should always succeed
-func (r *RaftNode) TruncateLog(index uint64) {
+func (r *Node) TruncateLog(index uint64) {
 	err := r.stableStore.TruncateLog(index)
 	if err != nil {
 		panic(err)
@@ -113,6 +114,6 @@ func (r *RaftNode) TruncateLog(index uint64) {
 }
 
 // RemoveLogs removes data from stableStore
-func (r *RaftNode) RemoveLogs() {
+func (r *Node) RemoveLogs() {
 	r.stableStore.Remove()
 }

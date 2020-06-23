@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strconv"
 	"sync"
 	"time"
 
+	"github.com/ziyaoh/some-kvstore/rpc"
+	"github.com/ziyaoh/some-kvstore/util"
 	"google.golang.org/grpc"
 )
 
@@ -23,18 +24,18 @@ const (
 	ExitState
 )
 
-// RaftNode defines an individual Raft node.
-type RaftNode struct {
-	State     NodeState
-	Self      *RemoteNode
-	Leader    *RemoteNode
-	Peers     []*RemoteNode
-	config    *Config
-	port      int
+// Node defines an individual Raft node.
+type Node struct {
+	State  NodeState
+	Self   *rpc.RemoteNode // move (maybe, or both)
+	Leader *rpc.RemoteNode
+	Peers  []*rpc.RemoteNode
+	config *Config
+	// port      int // move (maybe, or both)
 	nodeMutex sync.Mutex
 
-	server        *grpc.Server
-	NetworkPolicy *NetworkPolicy
+	server        *grpc.Server // move (maybe, or both)
+	NetworkPolicy *rpc.NetworkPolicy
 
 	// Stable store (written to disk, use helper methods)
 	stableStore StableStore
@@ -58,36 +59,41 @@ type RaftNode struct {
 
 	// Client request map (used to store channels to respond through once a
 	// request has been processed)
-	requestsByCacheID map[string]chan ClientReply
+	requestsByCacheID map[string]chan rpc.ClientReply
 	requestsMutex     sync.Mutex
+
+	// Client registration map (used to store channels to respond through once a
+	// registration has been processed)
+	registrationsByLogIndex map[uint64]chan rpc.RegisterClientReply
+	registrationsMutex      sync.Mutex
 }
 
 // CreateNode is used to construct a new Raft node. It takes a configuration,
 // as well as implementations of various interfaces that are required.
 // If we have any old state, such as snapshots, logs, Peers, etc, all those will be restored when creating the Raft node.
 // Use port=0 for auto selection
-func CreateNode(listener net.Listener, connect *RemoteNode, config *Config, stateMachine StateMachine, stableStore StableStore) (*RaftNode, error) {
-	r := new(RaftNode)
+func CreateNode(listener net.Listener, server *grpc.Server, connect *rpc.RemoteNode, config *Config, stateMachine StateMachine, stableStore StableStore) (*Node, error) {
+	r := new(Node)
 
 	// Set remote self based on listener address
-	r.Self = &RemoteNode{
-		Id:   AddrToID(listener.Addr().String(), config.NodeIDSize),
+	r.Self = &rpc.RemoteNode{
+		Id:   util.AddrToID(listener.Addr().String(), config.NodeIDSize),
 		Addr: listener.Addr().String(),
 	}
 	r.config = config
-	r.Peers = []*RemoteNode{}
+	r.Peers = []*rpc.RemoteNode{}
 	// passed in port may be 0
-	_, realPort, err := net.SplitHostPort(listener.Addr().String())
-	if err != nil {
-		return nil, err
-	}
-	r.port, err = strconv.Atoi(realPort)
-	if err != nil {
-		return nil, err
-	}
+	// _, realPort, err := net.SplitHostPort(listener.Addr().String())
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// r.port, err = strconv.Atoi(realPort)
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	// Initialize network policy
-	r.NetworkPolicy = NewNetworkPolicy()
+	r.NetworkPolicy = rpc.NewNetworkPolicy()
 	r.NetworkPolicy.PauseWorld(false)
 
 	// Initialize leader specific state
@@ -112,17 +118,19 @@ func CreateNode(listener net.Listener, connect *RemoteNode, config *Config, stat
 	r.initStableStore()
 
 	// Initialize client request cache
-	r.requestsByCacheID = make(map[string]chan ClientReply)
+	r.requestsByCacheID = make(map[string]chan rpc.ClientReply)
+	r.registrationsByLogIndex = make(map[uint64]chan rpc.RegisterClientReply)
 
 	// Start RPC server
-	r.server = grpc.NewServer()
-	RegisterRaftRPCServer(r.server, r)
+	r.server = server
+	rpc.RegisterRaftRPCServer(r.server, r)
 	go r.server.Serve(listener)
 	r.Out("Started node")
 
 	r.State = JoinState
 	if connect != nil {
-		err := connect.JoinRPC(r)
+		// err := connect.JoinRPC(r.Self)
+		err := r.joinRPC(connect)
 		if err != nil {
 			return nil, err
 		}
@@ -139,7 +147,7 @@ func CreateNode(listener net.Listener, connect *RemoteNode, config *Config, stat
 // another state, the function returns the next function to execute.
 type stateFunction func() stateFunction
 
-func (r *RaftNode) run() {
+func (r *Node) run() {
 	var curr stateFunction = r.doFollower
 	for curr != nil {
 		curr = curr()
@@ -149,7 +157,7 @@ func (r *RaftNode) run() {
 // startCluster puts the current Raft node on hold until the required number of
 // Peers join the cluster. Once they do, it starts the Peers via a StartNodeRPC
 // call, and then starts the current node in the follower state.
-func (r *RaftNode) startCluster() {
+func (r *Node) startCluster() {
 	r.nodeMutex.Lock()
 	r.Peers = append(r.Peers, r.Self)
 	r.nodeMutex.Unlock()
@@ -163,7 +171,8 @@ func (r *RaftNode) startCluster() {
 	for _, node := range r.Peers {
 		if r.Self.Id != node.Id {
 			r.Out("Starting node-%v", node.Id)
-			err := node.StartNodeRPC(r, r.Peers)
+			// err := node.StartNodeRPC(r.Self, r.Peers)
+			err := r.startNodeRPC(node, r.Peers)
 			if err != nil {
 				r.Error("Unable to start node: %v", err)
 			}
@@ -175,14 +184,15 @@ func (r *RaftNode) startCluster() {
 }
 
 // Join adds the fromNode to the current Raft cluster.
-func (r *RaftNode) Join(fromNode *RemoteNode) error {
+func (r *Node) Join(fromNode *rpc.RemoteNode) error {
 	r.nodeMutex.Lock()
 	defer r.nodeMutex.Unlock()
 
 	if len(r.Peers) == r.config.ClusterSize {
 		for _, node := range r.Peers {
 			if node.Id == fromNode.Id {
-				node.StartNodeRPC(r, r.Peers)
+				// node.StartNodeRPC(r.Self, r.Peers)
+				r.startNodeRPC(node, r.Peers)
 				return nil
 			}
 		}
@@ -196,7 +206,7 @@ func (r *RaftNode) Join(fromNode *RemoteNode) error {
 }
 
 // StartNode is invoked on us by a remote node, and starts the current node in follower state.
-func (r *RaftNode) StartNode(req *StartNodeRequest) error {
+func (r *Node) StartNode(req *rpc.StartNodeRequest) error {
 	r.nodeMutex.Lock()
 	defer r.nodeMutex.Unlock()
 
@@ -211,51 +221,51 @@ func (r *RaftNode) StartNode(req *StartNodeRequest) error {
 
 // AppendEntriesMsg is used for notifying candidates of a new leader and transfering logs
 type AppendEntriesMsg struct {
-	request *AppendEntriesRequest
-	reply   chan AppendEntriesReply
+	request *rpc.AppendEntriesRequest
+	reply   chan rpc.AppendEntriesReply
 }
 
 // AppendEntries is invoked on us by a remote node, and sends the request and a
 // reply channel to the stateFunction.
-func (r *RaftNode) AppendEntries(req *AppendEntriesRequest) AppendEntriesReply {
+func (r *Node) AppendEntries(req *rpc.AppendEntriesRequest) rpc.AppendEntriesReply {
 	// r.Debug("AppendEntries request received")
-	reply := make(chan AppendEntriesReply)
+	reply := make(chan rpc.AppendEntriesReply)
 	r.appendEntries <- AppendEntriesMsg{req, reply}
 	return <-reply
 }
 
 // RequestVoteMsg is used for raft elections
 type RequestVoteMsg struct {
-	request *RequestVoteRequest
-	reply   chan RequestVoteReply
+	request *rpc.RequestVoteRequest
+	reply   chan rpc.RequestVoteReply
 }
 
 // RequestVote is invoked on us by a remote node, and sends the request and a
 // reply channel to the stateFunction.
-func (r *RaftNode) RequestVote(req *RequestVoteRequest) RequestVoteReply {
+func (r *Node) RequestVote(req *rpc.RequestVoteRequest) rpc.RequestVoteReply {
 	r.Debug("RequestVote request received")
-	reply := make(chan RequestVoteReply)
+	reply := make(chan rpc.RequestVoteReply)
 	r.requestVote <- RequestVoteMsg{req, reply}
 	return <-reply
 }
 
 // RegisterClientMsg is sent from a client to raft leader to register itself. Mainly used for caching purposes
 type RegisterClientMsg struct {
-	request *RegisterClientRequest
-	reply   chan RegisterClientReply
+	request *rpc.RegisterClientRequest
+	reply   chan rpc.RegisterClientReply
 }
 
 // RegisterClient is invoked on us by a client, and sends the request and a
 // reply channel to the stateFunction. If the cluster hasn't started yet, it
 // returns the corresponding RegisterClientReply.
-func (r *RaftNode) RegisterClient(req *RegisterClientRequest) RegisterClientReply {
+func (r *Node) RegisterClient(req *rpc.RegisterClientRequest) rpc.RegisterClientReply {
 	r.Debug("RegisterClientRequest received")
-	reply := make(chan RegisterClientReply)
+	reply := make(chan rpc.RegisterClientReply)
 
 	// If cluster hasn't started yet, return
 	if r.State == JoinState {
-		return RegisterClientReply{
-			Status:     ClientStatus_CLUSTER_NOT_STARTED,
+		return rpc.RegisterClientReply{
+			Status:     rpc.ClientStatus_CLUSTER_NOT_STARTED,
 			ClientId:   0,
 			LeaderHint: nil,
 		}
@@ -268,26 +278,26 @@ func (r *RaftNode) RegisterClient(req *RegisterClientRequest) RegisterClientRepl
 
 // ClientRequestMsg is sent from a client to raft leader to make changes to the state machine
 type ClientRequestMsg struct {
-	request *ClientRequest
-	reply   chan ClientReply
+	request *rpc.ClientRequest
+	reply   chan rpc.ClientReply
 }
 
 // ClientRequest is invoked on us by a client, and sends the request and a
 // reply channel to the stateFunction. If the cluster hasn't started yet, it
 // returns the corresponding ClientReply.
-func (r *RaftNode) ClientRequest(req *ClientRequest) ClientReply {
+func (r *Node) ClientRequest(req *rpc.ClientRequest) rpc.ClientReply {
 	r.Debug("ClientRequest request received")
 
 	// If cluster hasn't started yet, return
 	if r.State == JoinState {
-		return ClientReply{
-			Status:     ClientStatus_CLUSTER_NOT_STARTED,
+		return rpc.ClientReply{
+			Status:     rpc.ClientStatus_CLUSTER_NOT_STARTED,
 			Response:   nil,
 			LeaderHint: nil,
 		}
 	}
 
-	reply := make(chan ClientReply)
+	reply := make(chan rpc.ClientReply)
 	cr, exists := r.GetCachedReply(*req)
 
 	if exists {
@@ -301,14 +311,14 @@ func (r *RaftNode) ClientRequest(req *ClientRequest) ClientReply {
 }
 
 // Exit abruptly shuts down the current node's process, including the GRPC server.
-func (r *RaftNode) Exit() {
+func (r *Node) Exit() {
 	r.Out("Abruptly shutting down node!")
 	os.Exit(0)
 }
 
 // GracefulExit sends a signal down the gracefulExit channel, in order to enable
 // a safe exit from the cluster, handled by the current stateFunction.
-func (r *RaftNode) GracefulExit() {
+func (r *Node) GracefulExit() {
 	r.NetworkPolicy.PauseWorld(true)
 	r.Out("Gracefully shutting down node!")
 
@@ -318,5 +328,6 @@ func (r *RaftNode) GracefulExit() {
 
 	r.State = ExitState
 	r.stableStore.Close()
+	r.stateMachine.Close()
 	r.server.GracefulStop()
 }

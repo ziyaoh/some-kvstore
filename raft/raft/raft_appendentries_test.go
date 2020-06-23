@@ -5,13 +5,14 @@ import (
 	"time"
 
 	"github.com/ziyaoh/some-kvstore/raft/statemachines"
-	"golang.org/x/net/context"
+	"github.com/ziyaoh/some-kvstore/rpc"
+	"github.com/ziyaoh/some-kvstore/util"
 )
 
 // Test making sure leaders can register the client and process the request from clients properly
 // Making sure that heartbeats replicate logs correctly under multiple partition scenarios
 func TestAppendEntriesFromClient(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 	config := DefaultConfig()
 	config.ClusterSize = 7
 	cluster, _ := CreateLocalCluster(config)
@@ -24,7 +25,7 @@ func TestAppendEntriesFromClient(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	followers := make([]*RaftNode, 0)
+	followers := make([]*Node, 0)
 	for _, node := range cluster {
 		if node != leader {
 			followers = append(followers, node)
@@ -32,9 +33,9 @@ func TestAppendEntriesFromClient(t *testing.T) {
 	}
 
 	// First make sure we can register a client correctly
-	reply, _ := leader.RegisterClientCaller(context.Background(), &RegisterClientRequest{})
+	reply := leader.RegisterClient(&rpc.RegisterClientRequest{})
 
-	if reply.Status != ClientStatus_OK {
+	if reply.Status != rpc.ClientStatus_OK {
 		t.Fatal("Counld not register client")
 	}
 
@@ -44,29 +45,29 @@ func TestAppendEntriesFromClient(t *testing.T) {
 	for j := 0; j < 5; j++ {
 		data[j] = byte(j)
 	}
-	cliReq := ClientRequest{
+	cliReq := rpc.ClientRequest{
 		ClientId:        clientid,
 		SequenceNum:     uint64(1),
 		StateMachineCmd: statemachines.HashChainInit,
 		Data:            data,
 	}
 
-	clientResult, _ := leader.ClientRequestCaller(context.Background(), &cliReq)
-	if clientResult.Status != ClientStatus_OK {
+	clientResult := leader.ClientRequest(&cliReq)
+	if clientResult.Status != rpc.ClientStatus_OK {
 		t.Errorf("Leader failed to commit a client request hash chain init")
 		return
 	}
 
 	for i := 2; i < 5; i++ {
-		cliReq := ClientRequest{
+		cliReq := rpc.ClientRequest{
 			ClientId:        clientid,
 			SequenceNum:     uint64(i),
 			StateMachineCmd: statemachines.HashChainAdd,
 			Data:            []byte{},
 		}
 
-		clientResult, _ := leader.ClientRequestCaller(context.Background(), &cliReq)
-		if clientResult.Status != ClientStatus_OK {
+		clientResult := leader.ClientRequest(&cliReq)
+		if clientResult.Status != rpc.ClientStatus_OK {
 			t.Errorf("Leader failed to commit a client request %v", i)
 			return
 		}
@@ -92,15 +93,15 @@ func TestAppendEntriesFromClient(t *testing.T) {
 
 	followers[0].NetworkPolicy.PauseWorld(true)
 	for i := 5; i < 7; i++ {
-		cliReq := ClientRequest{
+		cliReq := rpc.ClientRequest{
 			ClientId:        clientid,
 			SequenceNum:     uint64(i),
 			StateMachineCmd: statemachines.HashChainAdd,
 			Data:            []byte{},
 		}
 
-		clientResult, _ := leader.ClientRequestCaller(context.Background(), &cliReq)
-		if clientResult.Status != ClientStatus_OK {
+		clientResult := leader.ClientRequest(&cliReq)
+		if clientResult.Status != rpc.ClientStatus_OK {
 			t.Errorf("Leader failed to commit a client request %v", i)
 			return
 		}
@@ -119,15 +120,15 @@ func TestAppendEntriesFromClient(t *testing.T) {
 	leader.NetworkPolicy.PauseWorld(true)
 	go func() {
 		for i := 7; i < 9; i++ {
-			cliReq := ClientRequest{
+			cliReq := rpc.ClientRequest{
 				ClientId:        clientid,
 				SequenceNum:     uint64(i),
 				StateMachineCmd: statemachines.HashChainAdd,
 				Data:            []byte{},
 			}
 
-			clientResult, _ := leader.ClientRequestCaller(context.Background(), &cliReq)
-			if clientResult.Status == ClientStatus_OK {
+			clientResult := leader.ClientRequest(&cliReq)
+			if clientResult.Status == rpc.ClientStatus_OK {
 				t.Errorf("Old leader should have failed to commit a client request %v", i)
 				return
 			}
@@ -135,7 +136,7 @@ func TestAppendEntriesFromClient(t *testing.T) {
 	}()
 
 	time.Sleep(5 * time.Second)
-	var newLeader *RaftNode
+	var newLeader *Node
 	for _, node := range followers {
 		if node.State == LeaderState {
 			newLeader = node
@@ -143,15 +144,15 @@ func TestAppendEntriesFromClient(t *testing.T) {
 		}
 	}
 	for i := 9; i < 11; i++ {
-		cliReq := ClientRequest{
+		cliReq := rpc.ClientRequest{
 			ClientId:        clientid,
 			SequenceNum:     uint64(i),
 			StateMachineCmd: statemachines.HashChainAdd,
 			Data:            []byte{},
 		}
 
-		clientResult, _ := newLeader.ClientRequestCaller(context.Background(), &cliReq)
-		if clientResult.Status != ClientStatus_OK {
+		clientResult := newLeader.ClientRequest(&cliReq)
+		if clientResult.Status != rpc.ClientStatus_OK {
 			t.Errorf("Leader failed to commit a client request %v", i)
 			return
 		}
@@ -166,7 +167,7 @@ func TestAppendEntriesFromClient(t *testing.T) {
 	}
 }
 
-// Test the AppendEntriesRequest with the term lower than the follower's term
+// Test the rpc.AppendEntriesRequest with the term lower than the follower's term
 func TestAppendEntriesTerm(t *testing.T) {
 	config := DefaultConfig()
 	config.ClusterSize = 3
@@ -180,7 +181,7 @@ func TestAppendEntriesTerm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	followers := make([]*RaftNode, 0)
+	followers := make([]*Node, 0)
 	for _, node := range cluster {
 		if node != leader {
 			followers = append(followers, node)
@@ -190,7 +191,7 @@ func TestAppendEntriesTerm(t *testing.T) {
 	prevLogIndex := leader.LastLogIndex()
 	prevLogEntry := leader.GetLog(prevLogIndex)
 	prevLogTerm := prevLogEntry.GetTermId()
-	request := AppendEntriesRequest{
+	request := rpc.AppendEntriesRequest{
 		Term:         0,
 		Leader:       leader.Self,
 		PrevLogIndex: prevLogIndex,
@@ -199,18 +200,19 @@ func TestAppendEntriesTerm(t *testing.T) {
 		LeaderCommit: leader.commitIndex,
 	}
 
-	reply, err := followers[0].Self.AppendEntriesRPC(leader, &request)
+	// reply, err := followers[0].Self.AppendEntriesRPC(leader.Self, &request)
+	reply, err := leader.appendEntriesRPC(followers[0].Self, &request)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if reply.Success && reply.Term != leader.GetCurrentTerm() {
-		t.Fatal("AppendEntriesRequest should be rejected")
+		t.Fatal("rpc.AppendEntriesRequest should be rejected")
 	}
 }
 
-// Test AppendEntriesRequest with the prevLogIndex higher the follower's lastLogIndex
+// Test rpc.AppendEntriesRequest with the prevLogIndex higher the follower's lastLogIndex
 func TestAppendEntriesLogIndex(t *testing.T) {
 	config := DefaultConfig()
 	config.ClusterSize = 3
@@ -224,7 +226,7 @@ func TestAppendEntriesLogIndex(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	followers := make([]*RaftNode, 0)
+	followers := make([]*Node, 0)
 	for _, node := range cluster {
 		if node != leader {
 			followers = append(followers, node)
@@ -234,7 +236,7 @@ func TestAppendEntriesLogIndex(t *testing.T) {
 	prevLogIndex := leader.LastLogIndex()
 	prevLogEntry := leader.GetLog(prevLogIndex)
 	prevLogTerm := prevLogEntry.TermId
-	request := AppendEntriesRequest{
+	request := rpc.AppendEntriesRequest{
 		Term:         leader.GetCurrentTerm(),
 		Leader:       leader.Self,
 		PrevLogIndex: prevLogIndex + 100,
@@ -243,18 +245,19 @@ func TestAppendEntriesLogIndex(t *testing.T) {
 		LeaderCommit: leader.commitIndex,
 	}
 
-	reply, err := followers[0].Self.AppendEntriesRPC(leader, &request)
+	// reply, err := followers[0].Self.AppendEntriesRPC(leader.Self, &request)
+	reply, err := leader.appendEntriesRPC(followers[0].Self, &request)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if reply.Success && reply.Term != leader.GetCurrentTerm() {
-		t.Fatal("AppendEntriesRequest should be rejected")
+		t.Fatal("rpc.AppendEntriesRequest should be rejected")
 	}
 }
 
-// Test AppendEntriesRequest with PrevLogIndex and PrevLogTerm not matching
+// Test rpc.AppendEntriesRequest with PrevLogIndex and PrevLogTerm not matching
 func TestAppendEntriesLogTerm(t *testing.T) {
 	config := DefaultConfig()
 	config.ClusterSize = 3
@@ -268,7 +271,7 @@ func TestAppendEntriesLogTerm(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	followers := make([]*RaftNode, 0)
+	followers := make([]*Node, 0)
 	for _, node := range cluster {
 		if node != leader {
 			followers = append(followers, node)
@@ -278,7 +281,7 @@ func TestAppendEntriesLogTerm(t *testing.T) {
 	prevLogIndex := leader.LastLogIndex()
 	prevLogEntry := leader.GetLog(prevLogIndex)
 	prevLogTerm := prevLogEntry.TermId
-	request := AppendEntriesRequest{
+	request := rpc.AppendEntriesRequest{
 		Term:         leader.GetCurrentTerm(),
 		Leader:       leader.Self,
 		PrevLogIndex: prevLogIndex,
@@ -287,13 +290,14 @@ func TestAppendEntriesLogTerm(t *testing.T) {
 		LeaderCommit: leader.commitIndex,
 	}
 
-	reply, err := followers[0].Self.AppendEntriesRPC(leader, &request)
+	// reply, err := followers[0].Self.AppendEntriesRPC(leader.Self, &request)
+	reply, err := leader.appendEntriesRPC(followers[0].Self, &request)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if reply.Success != false && reply.Term != leader.GetCurrentTerm() {
-		t.Fatal("AppendEntriesRequest should be rejected")
+		t.Fatal("rpc.AppendEntriesRequest should be rejected")
 	}
 }

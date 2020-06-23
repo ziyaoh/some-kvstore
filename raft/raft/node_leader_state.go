@@ -3,17 +3,14 @@ package raft
 import (
 	"sort"
 	"time"
+
+	"github.com/ziyaoh/some-kvstore/rpc"
 )
 
 // doLeader implements the logic for a Raft node in the leader state.
-func (r *RaftNode) doLeader() stateFunction {
+func (r *Node) doLeader() stateFunction {
 	r.Out("Transitioning to LeaderState")
 	r.State = LeaderState
-
-	// TODO: Students should implement this method
-	// Hint: perform any initial work, and then consider what a node in the
-	// leader state should do when it receives an incoming message on every
-	// possible channel.
 
 	r.Leader = r.Self
 	// When a leader first comes to power, it initializes all nextIndex values to the index just after the last one in its log (&5.3)
@@ -24,10 +21,10 @@ func (r *RaftNode) doLeader() stateFunction {
 		r.nextIndex[peer.GetId()] = r.LastLogIndex() + uint64(1)
 		r.matchIndex[peer.GetId()] = 0
 	}
-	noopLog := LogEntry{
+	noopLog := rpc.LogEntry{
 		Index:  r.LastLogIndex() + 1,
 		TermId: r.GetCurrentTerm(),
-		Type:   CommandType_NOOP,
+		Type:   rpc.CommandType_NOOP,
 	}
 	r.StoreLog(&noopLog)
 	r.leaderMutex.Unlock()
@@ -55,7 +52,7 @@ func (r *RaftNode) doLeader() stateFunction {
 		case registerMsg := <-r.registerClient:
 			reply := registerMsg.reply
 
-			go r.handleRegisterClient(reply, fallbackChan)
+			r.handleRegisterClient(reply)
 
 		case voteMsg := <-r.requestVote:
 			if r.handleCompetingRequestVote(voteMsg) {
@@ -93,8 +90,9 @@ const (
 	HeartbeatFallback                 = "fallback"
 )
 
-func (r *RaftNode) sendHeartbeat(peer *RemoteNode, msg *AppendEntriesRequest, resultChan chan HeartbeatResult) {
-	reply, err := peer.AppendEntriesRPC(r, msg)
+func (r *Node) sendHeartbeat(peer *rpc.RemoteNode, msg *rpc.AppendEntriesRequest, resultChan chan HeartbeatResult) {
+	// reply, err := peer.AppendEntriesRPC(r.Self, msg)
+	reply, err := r.appendEntriesRPC(peer, msg)
 
 	if err == nil {
 		if reply.GetSuccess() {
@@ -104,24 +102,8 @@ func (r *RaftNode) sendHeartbeat(peer *RemoteNode, msg *AppendEntriesRequest, re
 			numEntries := uint64(len(msg.Entries))
 			r.nextIndex[peer.GetId()] += numEntries
 			r.matchIndex[peer.GetId()] = r.nextIndex[peer.GetId()] - 1
-
-			values := make(SortableUint64Slice, 0)
-			for _, node := range r.Peers {
-				values = append(values, r.matchIndex[node.GetId()])
-			}
-
-			sort.Sort(values)
-			commitableIndex := values[len(values)/2]
-			if commitableIndex > r.commitIndex && r.GetCurrentTerm() == r.GetLog(commitableIndex).GetTermId() {
-				// commit and process log
-				start := r.lastApplied
-				for index := start + 1; index <= commitableIndex; index++ {
-					r.processLogEntry(*r.GetLog(index))
-					r.lastApplied = index
-				}
-				r.commitIndex = commitableIndex
-			}
 			r.leaderMutex.Unlock()
+			r.tryCommit()
 		} else {
 			if reply.GetTerm() > r.GetCurrentTerm() {
 				r.setCurrentTerm(reply.GetTerm())
@@ -139,6 +121,27 @@ func (r *RaftNode) sendHeartbeat(peer *RemoteNode, msg *AppendEntriesRequest, re
 	}
 }
 
+func (r *Node) tryCommit() {
+	r.leaderMutex.Lock()
+	values := make(SortableUint64Slice, 0)
+	for _, node := range r.Peers {
+		values = append(values, r.matchIndex[node.GetId()])
+	}
+
+	sort.Sort(values)
+	commitableIndex := values[len(values)/2]
+	if commitableIndex > r.commitIndex && r.GetCurrentTerm() == r.GetLog(commitableIndex).GetTermId() {
+		// commit and process log
+		start := r.lastApplied
+		for index := start + 1; index <= commitableIndex; index++ {
+			r.processLogEntry(*r.GetLog(index))
+			r.lastApplied = index
+		}
+		r.commitIndex = commitableIndex
+	}
+	r.leaderMutex.Unlock()
+}
+
 // sendHeartbeats is used by the leader to send out heartbeats to each of
 // the other nodes. It returns true if the leader should fall back to the
 // follower state. (This happens if we discover that we are in an old term.)
@@ -147,8 +150,7 @@ func (r *RaftNode) sendHeartbeat(peer *RemoteNode, msg *AppendEntriesRequest, re
 // update them, and, if an index has made it to a quorum of nodes, commit
 // up to that index. Once committed to that index, the replicated state
 // machine should be given the new log entries via processLogEntry.
-func (r *RaftNode) sendHeartbeats() (fallback, sentToMajority bool) {
-	// TODO: Students should implement this method
+func (r *Node) sendHeartbeats() (fallback, sentToMajority bool) {
 	r.leaderMutex.Lock()
 	leaderCommit := r.commitIndex
 	r.leaderMutex.Unlock()
@@ -165,7 +167,7 @@ func (r *RaftNode) sendHeartbeats() (fallback, sentToMajority bool) {
 			r.leaderMutex.Lock()
 			nextInd := r.nextIndex[peer.GetId()]
 			r.leaderMutex.Unlock()
-			msg := AppendEntriesRequest{
+			msg := rpc.AppendEntriesRequest{
 				Term:         r.GetCurrentTerm(),
 				Leader:       r.Self,
 				PrevLogIndex: nextInd - 1,
@@ -176,6 +178,11 @@ func (r *RaftNode) sendHeartbeats() (fallback, sentToMajority bool) {
 			total++
 			go r.sendHeartbeat(peer, &msg, resultChan)
 		}
+	}
+
+	if total == 0 {
+		r.tryCommit()
+		return
 	}
 
 	successCount := 0
@@ -194,14 +201,14 @@ func (r *RaftNode) sendHeartbeats() (fallback, sentToMajority bool) {
 	return false, successCount >= total/2
 }
 
-func (r *RaftNode) handleClientRequest(request *ClientRequest, replyChannel chan ClientReply) {
-	cacheId := createCacheID(request.ClientId, request.SequenceNum)
+func (r *Node) handleClientRequest(request *rpc.ClientRequest, replyChannel chan rpc.ClientReply) {
+	cacheID := createCacheID(request.ClientId, request.SequenceNum)
 	r.requestsMutex.Lock()
-	oldChannel, exist := r.requestsByCacheID[cacheId]
+	oldChannel, exist := r.requestsByCacheID[cacheID]
 	if exist {
 		// duplicate request: result under processing
-		ch := make(chan ClientReply)
-		r.requestsByCacheID[cacheId] = ch
+		ch := make(chan rpc.ClientReply)
+		r.requestsByCacheID[cacheID] = ch
 		go func() {
 			response := <-ch
 			oldChannel <- response
@@ -210,83 +217,81 @@ func (r *RaftNode) handleClientRequest(request *ClientRequest, replyChannel chan
 		r.requestsMutex.Unlock()
 		return
 	}
-	r.requestsByCacheID[cacheId] = replyChannel
+	r.requestsByCacheID[cacheID] = replyChannel
 	r.requestsMutex.Unlock()
 
 	// new request
 	r.leaderMutex.Lock()
-	logEntry := LogEntry{
+	logEntry := rpc.LogEntry{
 		Index:   r.LastLogIndex() + 1,
 		TermId:  r.GetCurrentTerm(),
-		Type:    CommandType_STATE_MACHINE_COMMAND,
+		Type:    rpc.CommandType_STATE_MACHINE_COMMAND,
 		Command: request.StateMachineCmd,
 		Data:    request.Data,
-		CacheId: cacheId,
+		CacheId: cacheID,
 	}
 	r.StoreLog(&logEntry)
 	r.leaderMutex.Unlock()
 }
 
-func (r *RaftNode) handleRegisterClient(reply chan RegisterClientReply, fallbackChan chan bool) {
+func (r *Node) handleRegisterClient(replyChannel chan rpc.RegisterClientReply) {
 	r.leaderMutex.Lock()
-	logEntry := LogEntry{
+	logEntry := rpc.LogEntry{
 		Index:  r.LastLogIndex() + 1,
 		TermId: r.GetCurrentTerm(),
-		Type:   CommandType_CLIENT_REGISTRATION,
+		Type:   rpc.CommandType_CLIENT_REGISTRATION,
 	}
+
+	r.registrationsMutex.Lock()
+	_, exist := r.registrationsByLogIndex[logEntry.Index]
+	if exist {
+		panic("should not exist")
+	}
+	r.registrationsByLogIndex[logEntry.Index] = replyChannel
+	r.registrationsMutex.Unlock()
+
 	r.StoreLog(&logEntry)
 	r.leaderMutex.Unlock()
-	fallback, sentToMajority := r.sendHeartbeats()
-
-	var registerReply RegisterClientReply
-	if fallback {
-		registerReply = RegisterClientReply{
-			Status:     ClientStatus_NOT_LEADER,
-			ClientId:   0,
-			LeaderHint: r.Self,
-		}
-	} else if sentToMajority {
-		registerReply = RegisterClientReply{
-			Status:     ClientStatus_OK,
-			ClientId:   logEntry.Index,
-			LeaderHint: r.Self,
-		}
-	} else {
-		registerReply = RegisterClientReply{
-			Status:     ClientStatus_REQ_FAILED,
-			ClientId:   0,
-			LeaderHint: r.Self,
-		}
-	}
-
-	reply <- registerReply
-	if fallback {
-		fallbackChan <- true
-	}
 }
 
 // processLogEntry applies a single log entry to the finite state machine. It is
 // called once a log entry has been replicated to a majority and committed by
 // the leader. Once the entry has been applied, the leader responds to the client
 // with the result, and also caches the response.
-func (r *RaftNode) processLogEntry(entry LogEntry) ClientReply {
+func (r *Node) processLogEntry(entry rpc.LogEntry) {
 	r.Out("Processing log entry: %v", entry)
 
-	status := ClientStatus_OK
+	if entry.Type == rpc.CommandType_CLIENT_REGISTRATION {
+		registerReply := rpc.RegisterClientReply{
+			Status:     rpc.ClientStatus_OK,
+			ClientId:   entry.Index,
+			LeaderHint: r.Self,
+		}
+		r.registrationsMutex.Lock()
+		replyChan, exists := r.registrationsByLogIndex[entry.Index]
+		if exists {
+			replyChan <- registerReply
+			delete(r.registrationsByLogIndex, entry.Index)
+		}
+		r.registrationsMutex.Unlock()
+		return
+	}
+
+	status := rpc.ClientStatus_OK
 	response := []byte{}
 	var err error
 
 	// Apply command on state machine
-	if entry.Type == CommandType_STATE_MACHINE_COMMAND {
+	if entry.Type == rpc.CommandType_STATE_MACHINE_COMMAND {
 		response, err = r.stateMachine.ApplyCommand(entry.Command, entry.Data)
 		if err != nil {
-			status = ClientStatus_REQ_FAILED
+			status = rpc.ClientStatus_REQ_FAILED
 			response = []byte(err.Error())
 		}
 	}
 
 	// Construct reply
-	reply := ClientReply{
+	reply := rpc.ClientReply{
 		Status:     status,
 		Response:   response,
 		LeaderHint: r.Self,
@@ -305,6 +310,4 @@ func (r *RaftNode) processLogEntry(entry LogEntry) ClientReply {
 		delete(r.requestsByCacheID, entry.CacheId)
 	}
 	r.requestsMutex.Unlock()
-
-	return reply
 }

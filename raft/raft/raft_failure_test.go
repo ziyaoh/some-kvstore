@@ -4,11 +4,14 @@ import (
 	"math"
 	"testing"
 	"time"
+
+	"github.com/ziyaoh/some-kvstore/rpc"
+	"github.com/ziyaoh/some-kvstore/util"
 )
 
 // Leader is partitioned then rejoins back
 func TestLeaderFailsAndRejoins(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 
 	config := DefaultConfig()
 	config.ClusterSize = 5
@@ -26,7 +29,7 @@ func TestLeaderFailsAndRejoins(t *testing.T) {
 		return
 	}
 
-	followers := make([]*RaftNode, 0)
+	followers := make([]*Node, 0)
 	for _, node := range cluster {
 		if node != leader {
 			followers = append(followers, node)
@@ -44,7 +47,7 @@ func TestLeaderFailsAndRejoins(t *testing.T) {
 		return
 	}
 
-	newLeaders := make([]*RaftNode, 0)
+	newLeaders := make([]*Node, 0)
 
 	for _, follower := range followers {
 		if follower.State == LeaderState {
@@ -68,10 +71,10 @@ func TestLeaderFailsAndRejoins(t *testing.T) {
 
 	// Add a new log entry to the new leader; SHOULD be replicated
 	newLeader.leaderMutex.Lock()
-	logEntry := &LogEntry{
+	logEntry := &rpc.LogEntry{
 		Index:  newLeader.LastLogIndex() + 1,
 		TermId: newLeader.GetCurrentTerm(),
-		Type:   CommandType_NOOP,
+		Type:   rpc.CommandType_NOOP,
 		Data:   []byte{5, 6, 7, 8},
 	}
 	newLeader.StoreLog(logEntry)
@@ -92,8 +95,9 @@ func TestLeaderFailsAndRejoins(t *testing.T) {
 		return
 	}
 
+	// if leader.State != FollowerState && leader.GetCurrentTerm() <= newLeaderTerm {
 	if leader.State != FollowerState {
-		t.Errorf("Old leader should become a follower after rejoining back. leader's state is %v", leader.State)
+		t.Errorf("Old leader should become a follower or at least have a higher term after rejoining back. leader's state is %v", leader.State)
 		return
 	}
 
@@ -119,7 +123,7 @@ func TestLeaderFailsAndRejoins(t *testing.T) {
 
 // A follower is partitioned. While it is partitioned, an new log entry is added to leader and replicates. Then the follower rejoins.
 func TestFollowerPartitionedAndRejoinWithNewLog(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 
 	config := DefaultConfig()
 	config.ClusterSize = 5
@@ -138,7 +142,7 @@ func TestFollowerPartitionedAndRejoinWithNewLog(t *testing.T) {
 		return
 	}
 
-	followers := make([]*RaftNode, 0)
+	followers := make([]*Node, 0)
 	for _, node := range cluster {
 		if node != leader {
 			followers = append(followers, node)
@@ -151,10 +155,10 @@ func TestFollowerPartitionedAndRejoinWithNewLog(t *testing.T) {
 
 	// Add a new log entry to the leader;
 	leader.leaderMutex.Lock()
-	logEntry := &LogEntry{
+	logEntry := &rpc.LogEntry{
 		Index:  leader.LastLogIndex() + 1,
 		TermId: leader.GetCurrentTerm(),
-		Type:   CommandType_NOOP,
+		Type:   rpc.CommandType_NOOP,
 		Data:   []byte{1, 2, 3, 4},
 	}
 	leader.StoreLog(logEntry)
@@ -193,7 +197,7 @@ func TestFollowerPartitionedAndRejoinWithNewLog(t *testing.T) {
 }
 
 func TestCandidateAndLeaderFallbackAfterPartition(t *testing.T) {
-	suppressLoggers()
+	util.SuppressLoggers()
 	config := DefaultConfig()
 	config.ClusterSize = 5
 	cluster, err := CreateLocalCluster(config)
@@ -211,7 +215,7 @@ func TestCandidateAndLeaderFallbackAfterPartition(t *testing.T) {
 		return
 	}
 
-	followers := make([]*RaftNode, 0)
+	followers := make([]*Node, 0)
 	for _, node := range cluster {
 		if node != leader {
 			followers = append(followers, node)

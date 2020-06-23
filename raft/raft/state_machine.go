@@ -5,4 +5,5 @@ package raft
 type StateMachine interface {
 	GetState() (state interface{}) // Useful for testing once you use type assertions to convert the state
 	ApplyCommand(command uint64, data []byte) ([]byte, error)
+	Close()
 }
