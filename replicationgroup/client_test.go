@@ -3,10 +3,14 @@ package replicationgroup
 import (
 	"testing"
 
+	"github.com/ziyaoh/some-kvstore/util"
+
 	"github.com/stretchr/testify/assert"
 )
 
 func TestClientWithNormalLeader(t *testing.T) {
+	util.SuppressLoggers()
+
 	leader := CreateDefaultMockRGNode()
 	defer leader.GracefulExit()
 	addr := leader.Self.Addr
@@ -19,6 +23,8 @@ func TestClientWithNormalLeader(t *testing.T) {
 }
 
 func TestClientWithFailLeader(t *testing.T) {
+	util.SuppressLoggers()
+
 	leader := CreateFailMockRGNode()
 	defer leader.GracefulExit()
 	addr := leader.Self.Addr
@@ -31,6 +37,8 @@ func TestClientWithFailLeader(t *testing.T) {
 }
 
 func TestClientWithFollower(t *testing.T) {
+	util.SuppressLoggers()
+
 	leader := CreateDefaultMockRGNode()
 	defer leader.GracefulExit()
 	follower := CreateFollowerMockRGNode(leader.Self)
@@ -46,6 +54,8 @@ func TestClientWithFollower(t *testing.T) {
 }
 
 func TestClientWithStartingNode(t *testing.T) {
+	util.SuppressLoggers()
+
 	leader := CreateStartingMockRGNode()
 	defer leader.GracefulExit()
 	addr := leader.Self.Addr
@@ -58,6 +68,8 @@ func TestClientWithStartingNode(t *testing.T) {
 }
 
 func TestClientWithCandidate(t *testing.T) {
+	util.SuppressLoggers()
+
 	candidate := CreateCandidateMockRGNode()
 	defer candidate.GracefulExit()
 	addr := candidate.Self.Addr

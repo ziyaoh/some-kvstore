@@ -117,12 +117,12 @@ func (c *Client) sendRequest(command uint64, data []byte) ([]byte, error) {
 
 		switch reply.Status {
 		case rpc.ClientStatus_OK:
-			fmt.Printf("%v is the leader\n", c.Leader)
-			fmt.Printf("Request returned \"%v\"\n", reply.Response)
+			util.Out.Output(2, fmt.Sprintf("%v is the leader\n", c.Leader))
+			util.Out.Output(2, fmt.Sprintf("Request returned \"%v\"\n", reply.Response))
 			return reply.GetResponse(), nil
 		case rpc.ClientStatus_REQ_FAILED:
-			fmt.Printf("Request failed: %v\n", reply.Response)
-			fmt.Println("Retrying...")
+			util.Out.Output(2, fmt.Sprintf("Request failed: %v\n", reply.Response))
+			util.Out.Output(2, "Retrying...\n")
 			retries++
 		case rpc.ClientStatus_NOT_LEADER:
 			// The person we've contacted isn't the leader. Use their hint to find
