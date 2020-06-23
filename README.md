@@ -102,16 +102,16 @@ Commands for other replication group
             - [ ] client keeps track of finished request and piggyback in following requests
         - [ ] test
 - [x] redesign and refactor RPC calls flow
-- [ ] single replication group
+- [x] single replication group
     - [x] KV store as state machine
         - [x] implementation
         - [x] test
-    - [ ] integration
+    - [x] integration
         - [x] replication group node
         - [x] refactor existing raft implementation
             - [x] fix and refactor old tests
         - [x] client
-        - [ ] integration tests
+        - [x] integration tests
 - [ ] shard master
     - [ ] configuration
     - [ ] API
