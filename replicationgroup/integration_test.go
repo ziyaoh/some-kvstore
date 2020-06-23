@@ -17,7 +17,7 @@ type ClientStep struct {
 	value     []byte
 }
 
-func TestIntegrationBasic(t *testing.T) {
+func TestIntegrationNormal(t *testing.T) {
 	util.SuppressLoggers()
 
 	cases := []struct {
@@ -195,4 +195,41 @@ func TestIntegrationBasic(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestIntegrationOnClusterPartition(t *testing.T) {
+	util.SuppressLoggers()
+
+	nodes, err := CreateLocalReplicationGroup(raft.DefaultConfig())
+	if err != nil {
+		t.Errorf("Create local replication group failed: %v\n", err)
+	}
+	defer CleanupReplicationGroup(nodes)
+	time.Sleep(500 * time.Millisecond)
+
+	leader, err := findLeader(nodes)
+	assert.Nil(t, err, "find leader fail")
+	addr := nodes[0].Self.Addr
+
+	client, err := Connect(addr)
+	assert.Nil(t, err, "client connect to replication group fail")
+
+	_, err = client.Put([]byte("key"), []byte("value"))
+	assert.Nilf(t, err, "client try put fail: %v", err)
+
+	leader.raft.NetworkPolicy.PauseWorld(true)
+	channel := make(chan error)
+	go func() {
+		_, err := client.Append([]byte("key"), []byte("tail"))
+		channel <- err
+	}()
+	time.Sleep(300 * time.Millisecond)
+	leader.raft.NetworkPolicy.PauseWorld(false)
+
+	err = <-channel
+	assert.Nilf(t, err, "client append fail: %v", err)
+
+	result, err := client.Get([]byte("key"))
+	assert.Nilf(t, err, "client get key fail: %v", err)
+	assert.Equal(t, []byte("valuetail"), result, "result mismatch")
 }

@@ -319,7 +319,7 @@ func TestReplicationGroupCandidateInteraction(t *testing.T) {
 		t.Fatalf("find follower from local replication group fail: %v\n", err)
 	}
 	follower.raft.NetworkPolicy.PauseWorld(true)
-	time.Sleep(200 * time.Millisecond)
+	time.Sleep(300 * time.Millisecond)
 
 	// mock request
 	pair := statemachines.KVPair{

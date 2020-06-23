@@ -127,6 +127,9 @@ func (c *Client) sendRequest(command uint64, data []byte) ([]byte, error) {
 		case rpc.ClientStatus_NOT_LEADER:
 			// The person we've contacted isn't the leader. Use their hint to find
 			// the leader.
+			if reply.LeaderHint.Addr == c.Leader.Addr {
+				time.Sleep(200 * time.Millisecond)
+			}
 			c.Leader = reply.LeaderHint
 		case rpc.ClientStatus_ELECTION_IN_PROGRESS:
 			// An election is in progress. Accept the hint and wait an appropriate
