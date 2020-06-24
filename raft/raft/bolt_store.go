@@ -63,6 +63,15 @@ func (store *BoltStore) GetBytes(key []byte) []byte {
 	return b.Get(key)
 }
 
+// RemoveBytes removes a key-value pair
+// does nothing if key doesn't exist
+func (store *BoltStore) RemoveBytes(key []byte) error {
+	return store.db.Update(func(tx *bolt.Tx) error {
+		b := getBucket(tx, []byte("state"))
+		return b.Delete(key)
+	})
+}
+
 // SetUint64 sets a key-value pair into Bolt
 func (store *BoltStore) SetUint64(key []byte, term uint64) error {
 	return store.db.Update(func(tx *bolt.Tx) error {

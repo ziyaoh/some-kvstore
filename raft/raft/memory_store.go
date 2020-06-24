@@ -46,6 +46,17 @@ func (store *MemoryStore) GetBytes(key []byte) []byte {
 	return store.state[keyStr]
 }
 
+// RemoveBytes removes a key-value pair
+// does nothing if key doesn't exist
+func (store *MemoryStore) RemoveBytes(key []byte) error {
+	keyStr := string(key)
+	store.stateMu.Lock()
+	defer store.stateMu.Unlock()
+
+	delete(store.state, keyStr)
+	return nil
+}
+
 // SetUint64 sets a key-value pair
 func (store *MemoryStore) SetUint64(key []byte, term uint64) error {
 	keyStr := string(key)

@@ -8,6 +8,7 @@ type StableStore interface {
 	SetBytes(key, value []byte) error
 	// Return nil if key does not exist
 	GetBytes(key []byte) []byte
+	RemoveBytes(key []byte) error
 
 	SetUint64(key []byte, value uint64) error
 	// Return 0 if key does not exist
