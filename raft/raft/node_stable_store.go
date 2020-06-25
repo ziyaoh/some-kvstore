@@ -89,7 +89,6 @@ func (r *Node) GetCachedReply(clientReq rpc.ClientRequest) (*rpc.ClientReply, bo
 
 // RemoveCachedReply remove the cached client reply according to the passed in cacheID
 // It does nothing if cacheID does not exist
-// TODO: add discard cached reply function
 func (r *Node) RemoveCachedReply(cacheID string) error {
 	key := []byte("cacheID:" + cacheID)
 
