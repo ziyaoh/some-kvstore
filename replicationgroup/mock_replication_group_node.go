@@ -2,6 +2,9 @@ package replicationgroup
 
 import (
 	"fmt"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/ziyaoh/some-kvstore/raft/raft"
 	"github.com/ziyaoh/some-kvstore/rpc"
@@ -63,15 +66,29 @@ func errorClientRequestCaller(ctx context.Context, node *MockRGNode, req *rpc.Cl
 // MockRGNode mocks a replication group node with predefined behavior on client request
 type MockRGNode struct {
 	// implements ReplicationGroupRPCServer
-
 	Self          *rpc.RemoteNode
 	Leader        *rpc.RemoteNode
 	server        *grpc.Server
 	called        bool
 	ClientRequest func(ctx context.Context, node *MockRGNode, req *rpc.ClientRequest) (*rpc.ClientReply, error)
+
+	// optional element, useful for asserting called in client request
+	t        *testing.T
+	expected *rpc.ClientRequest
 }
 
 func (m *MockRGNode) ClientRequestCaller(ctx context.Context, req *rpc.ClientRequest) (*rpc.ClientReply, error) {
+	if m.t != nil && m.expected != nil {
+		expectMap := make(map[uint64]bool)
+		actualMap := make(map[uint64]bool)
+		for _, seq := range m.expected.AckSeqs {
+			expectMap[seq] = true
+		}
+		for _, seq := range req.AckSeqs {
+			actualMap[seq] = true
+		}
+		assert.Equal(m.t, expectMap, actualMap, "client request ack seq doesn't match")
+	}
 	return m.ClientRequest(ctx, m, req)
 }
 

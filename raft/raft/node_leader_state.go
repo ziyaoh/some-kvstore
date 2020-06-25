@@ -222,13 +222,19 @@ func (r *Node) handleClientRequest(request *rpc.ClientRequest, replyChannel chan
 
 	// new request
 	r.leaderMutex.Lock()
+	ackCache := make([]string, 0)
+	for _, seq := range request.AckSeqs {
+		ackID := createCacheID(request.ClientId, seq)
+		ackCache = append(ackCache, ackID)
+	}
 	logEntry := rpc.LogEntry{
-		Index:   r.LastLogIndex() + 1,
-		TermId:  r.GetCurrentTerm(),
-		Type:    rpc.CommandType_STATE_MACHINE_COMMAND,
-		Command: request.StateMachineCmd,
-		Data:    request.Data,
-		CacheId: cacheID,
+		Index:       r.LastLogIndex() + 1,
+		TermId:      r.GetCurrentTerm(),
+		Type:        rpc.CommandType_STATE_MACHINE_COMMAND,
+		Command:     request.StateMachineCmd,
+		Data:        request.Data,
+		CacheId:     cacheID,
+		AckCacheIds: ackCache,
 	}
 	r.StoreLog(&logEntry)
 	r.leaderMutex.Unlock()
@@ -260,6 +266,10 @@ func (r *Node) handleRegisterClient(replyChannel chan rpc.RegisterClientReply) {
 // with the result, and also caches the response.
 func (r *Node) processLogEntry(entry rpc.LogEntry) {
 	r.Out("Processing log entry: %v", entry)
+
+	for _, cacheID := range entry.AckCacheIds {
+		r.RemoveCachedReply(cacheID)
+	}
 
 	if entry.Type == rpc.CommandType_CLIENT_REGISTRATION {
 		registerReply := rpc.RegisterClientReply{

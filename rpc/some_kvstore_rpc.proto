@@ -86,6 +86,9 @@ message LogEntry {
   // After processing this log entry, what ID to use when caching the
   // response. Use an empty string to not cache at all
   string cacheId = 6;
+
+  // Cache IDs of finished client requests for cluster to clean cache
+  repeated string ackCacheIds = 7;
 }
 
 message AppendEntriesRequest {
@@ -176,6 +179,9 @@ message ClientRequest {
 
   // Data to accompany the command to the state machine; it may affect state
   bytes data = 5;
+
+  // Sequence numbers of finished client requests for cluster to clean cache
+  repeated uint64 ackSeqs = 6;
 }
 
 message ClientReply {

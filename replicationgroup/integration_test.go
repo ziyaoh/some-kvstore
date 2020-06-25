@@ -2,6 +2,7 @@ package replicationgroup
 
 import (
 	"bytes"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -148,7 +149,7 @@ func TestIntegrationNormal(t *testing.T) {
 
 			addr := nodes[0].Self.Addr
 
-			client, err := Connect(addr)
+			client, err := Connect(rand.Uint64(), addr)
 			assert.Nil(t, err, "client connect to replication group fail")
 
 			// steps before final test
@@ -211,7 +212,7 @@ func TestIntegrationOnClusterPartition(t *testing.T) {
 	assert.Nil(t, err, "find leader fail")
 	addr := nodes[0].Self.Addr
 
-	client, err := Connect(addr)
+	client, err := Connect(rand.Uint64(), addr)
 	assert.Nil(t, err, "client connect to replication group fail")
 
 	_, err = client.Put([]byte("key"), []byte("value"))

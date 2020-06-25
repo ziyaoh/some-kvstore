@@ -87,6 +87,14 @@ func (r *Node) GetCachedReply(clientReq rpc.ClientRequest) (*rpc.ClientReply, bo
 	return nil, false
 }
 
+// RemoveCachedReply remove the cached client reply according to the passed in cacheID
+// It does nothing if cacheID does not exist
+func (r *Node) RemoveCachedReply(cacheID string) error {
+	key := []byte("cacheID:" + cacheID)
+
+	return r.stableStore.RemoveBytes(key)
+}
+
 // LastLogIndex returns index of last log. If no log exists, it returns 0.
 func (r *Node) LastLogIndex() uint64 {
 	return r.stableStore.LastLogIndex()

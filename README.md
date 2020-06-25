@@ -95,12 +95,7 @@ Commands for other replication group
     - [ ] optimization
         - [ ] membership change
         - [ ] log compaction
-    - [ ] client request idempotency cache and cleaning up
-        - [ ] implementation
-            - [ ] add finished seq list in rpc.ClientRequest and in LogEntry
-            - [ ] remove finished request when processing LogEntry
-            - [ ] client keeps track of finished request and piggyback in following requests
-        - [ ] test
+    - [x] client request idempotency cache and cleaning up
 - [x] redesign and refactor RPC calls flow
 - [x] single replication group
     - [x] KV store as state machine
@@ -111,6 +106,7 @@ Commands for other replication group
         - [x] refactor existing raft implementation
             - [x] fix and refactor old tests
         - [x] client
+            - [x] change to ack finished request seq
         - [x] integration tests
 - [ ] shard master
     - [ ] configuration

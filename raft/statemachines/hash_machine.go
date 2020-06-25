@@ -4,6 +4,8 @@ import (
 	"crypto/md5"
 	"errors"
 	"fmt"
+
+	"github.com/ziyaoh/some-kvstore/util"
 )
 
 // Enum for types of HashMachine commands
@@ -35,7 +37,7 @@ func (h *HashMachine) add() (hash string, err error) {
 	}
 
 	sum := md5.Sum(h.hash)
-	fmt.Printf("Hash is changing from %v to %v\n", h.hash, sum)
+	util.Out.Output(2, fmt.Sprintf("Hash is changing from %v to %v\n", h.hash, sum))
 	h.hash = sum[:]
 
 	return fmt.Sprintf("%v", h.hash), nil
