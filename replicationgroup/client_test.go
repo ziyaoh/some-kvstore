@@ -1,6 +1,7 @@
 package replicationgroup
 
 import (
+	"math/rand"
 	"testing"
 
 	"github.com/ziyaoh/some-kvstore/util"
@@ -14,7 +15,7 @@ func TestClientWithNormalLeader(t *testing.T) {
 	leader := CreateDefaultMockRGNode()
 	defer leader.GracefulExit()
 	addr := leader.Self.Addr
-	client, err := Connect(addr)
+	client, err := Connect(rand.Uint64(), addr)
 	assert.Nil(t, err, "Client connect to server fail")
 
 	result, err := client.Get([]byte("key"))
@@ -28,7 +29,7 @@ func TestClientWithFailLeader(t *testing.T) {
 	leader := CreateFailMockRGNode()
 	defer leader.GracefulExit()
 	addr := leader.Self.Addr
-	client, err := Connect(addr)
+	client, err := Connect(rand.Uint64(), addr)
 	assert.Nil(t, err, "Client connect to server fail")
 
 	result, err := client.Get([]byte("key"))
@@ -45,7 +46,7 @@ func TestClientWithFollower(t *testing.T) {
 	defer follower.GracefulExit()
 
 	addr := follower.Self.Addr
-	client, err := Connect(addr)
+	client, err := Connect(rand.Uint64(), addr)
 	assert.Nil(t, err, "Client connect to server fail")
 
 	result, err := client.Get([]byte("key"))
@@ -59,7 +60,7 @@ func TestClientWithStartingNode(t *testing.T) {
 	leader := CreateStartingMockRGNode()
 	defer leader.GracefulExit()
 	addr := leader.Self.Addr
-	client, err := Connect(addr)
+	client, err := Connect(rand.Uint64(), addr)
 	assert.Nil(t, err, "Client connect to server fail")
 
 	result, err := client.Get([]byte("key"))
@@ -73,7 +74,7 @@ func TestClientWithCandidate(t *testing.T) {
 	candidate := CreateCandidateMockRGNode()
 	defer candidate.GracefulExit()
 	addr := candidate.Self.Addr
-	client, err := Connect(addr)
+	client, err := Connect(rand.Uint64(), addr)
 	assert.Nil(t, err, "Client connect to server fail")
 
 	result, err := client.Get([]byte("key"))

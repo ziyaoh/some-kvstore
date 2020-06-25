@@ -26,7 +26,7 @@ type Client struct {
 const MaxRetries = 3
 
 // Connect creates a new Client without actually connect to the address, assuming that it works
-func Connect(addr string) (cp *Client, err error) {
+func Connect(id uint64, addr string) (cp *Client, err error) {
 	cp = new(Client)
 
 	// Note: we don't yet know the ID of the remoteNode, so just set it to an
@@ -35,7 +35,7 @@ func Connect(addr string) (cp *Client, err error) {
 
 	// We've registered with the leader!
 	// TODO: Id should be known after registering to shard master
-	cp.ID = rand.Uint64()
+	cp.ID = id
 	cp.Leader = remoteNode
 
 	return
