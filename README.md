@@ -148,7 +148,10 @@ Commands for other replication group
 - [ ] shard orchestrator
     - [ ] configuration
     - [ ] API
+        - [ ] rpc set up
     - [ ] client
+        - [ ] frontend client
+        - [ ] internal client
 - [ ] integration
     - [ ] API and communication between replication groups and shard orchestrator
     - [ ] shard transfer between replication groups
