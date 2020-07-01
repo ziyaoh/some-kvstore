@@ -153,6 +153,7 @@ Commands for other replication group
         - [ ] frontend client
         - [ ] internal client
 - [ ] integration
+    - [ ] sharding replication group state machine
     - [ ] API and communication between replication groups and shard orchestrator
     - [ ] shard transfer between replication groups
 - [ ] persistence

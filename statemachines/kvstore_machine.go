@@ -26,7 +26,7 @@ type KVPair struct {
 }
 
 // KVStoreMachine implements the raft.StateMachine interface.
-// It manages one or more logical shards of the entire dataset.
+// It manages a set of key-value pairs.
 type KVStoreMachine struct {
 	store *bolt.DB
 	path  string
