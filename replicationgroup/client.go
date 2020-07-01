@@ -6,8 +6,8 @@ import (
 	"time"
 
 	errHelp "github.com/pkg/errors"
-	"github.com/ziyaoh/some-kvstore/raft/statemachines"
 	"github.com/ziyaoh/some-kvstore/rpc"
+	"github.com/ziyaoh/some-kvstore/statemachines"
 	"github.com/ziyaoh/some-kvstore/util"
 )
 

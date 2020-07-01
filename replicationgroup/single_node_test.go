@@ -9,10 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ziyaoh/some-kvstore/raft/statemachines"
 	"github.com/ziyaoh/some-kvstore/rpc"
+	"github.com/ziyaoh/some-kvstore/statemachines"
 
 	"github.com/ziyaoh/some-kvstore/raft/raft"
+	hashmachine "github.com/ziyaoh/some-kvstore/raft/statemachines"
 	"github.com/ziyaoh/some-kvstore/util"
 )
 
@@ -20,7 +21,7 @@ func TestNodeCreation(t *testing.T) {
 	util.SuppressLoggers()
 
 	config := oneNodeClusterConfig()
-	node, err := CreateNode(util.OpenPort(0), nil, config, new(statemachines.HashMachine), raft.NewMemoryStore())
+	node, err := CreateNode(util.OpenPort(0), nil, config, new(hashmachine.HashMachine), raft.NewMemoryStore())
 	if err != nil {
 		t.Errorf("Create Single Node fail: %v", err)
 	}
