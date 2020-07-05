@@ -9,7 +9,7 @@ import (
 )
 
 func TestConfigMachineInitialization(t *testing.T) {
-	machine := NewConfigMachine()
+	machine := NewConfigMachine(util.NumShards)
 	defer machine.Close()
 
 	state := machine.GetState().(configMachineState)
@@ -26,8 +26,9 @@ func TestConfigMachineInitialization(t *testing.T) {
 }
 
 func TestConfigMachineGetStateSimple(t *testing.T) {
-	initConfig := util.NewConfiguration()
+	initConfig := util.NewConfiguration(util.NumShards)
 	machine := &ConfigMachine{
+		numShards:     util.NumShards,
 		configHistory: []util.Configuration{initConfig},
 		currentConfig: initConfig.NextConfig(),
 	}
@@ -53,7 +54,7 @@ func TestConfigMachineGetStateSimple(t *testing.T) {
 }
 
 func TestConfigMachineHandleUnknownCommand(t *testing.T) {
-	machine := NewConfigMachine()
+	machine := NewConfigMachine(util.NumShards)
 	defer machine.Close()
 
 	res, err := machine.ApplyCommand(10, []byte{})
@@ -190,7 +191,7 @@ func TestConfigMachineHandleJoin(t *testing.T) {
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			machine := NewConfigMachine()
+			machine := NewConfigMachine(util.NumShards)
 			defer machine.Close()
 
 			for _, step := range testCase.data {
@@ -224,7 +225,7 @@ func TestConfigMachineHandleLeave(t *testing.T) {
 	singleGroups := map[uint64][]string{
 		uint64(1): []string{"0.0.0.0"},
 	}
-	var singleGroupLocation [util.NumShards]uint64
+	singleGroupLocation := make([]uint64, util.NumShards)
 	for i := range singleGroupLocation {
 		singleGroupLocation[i] = uint64(1)
 	}
@@ -234,7 +235,7 @@ func TestConfigMachineHandleLeave(t *testing.T) {
 		uint64(2): []string{"0.0.0.0"},
 		uint64(3): []string{"0.0.0.0"},
 	}
-	var normalLocation [util.NumShards]uint64
+	normalLocation := make([]uint64, util.NumShards)
 	for i := range normalLocation {
 		if i < util.NumShards/2 {
 			normalLocation[i] = uint64(1)
@@ -247,7 +248,7 @@ func TestConfigMachineHandleLeave(t *testing.T) {
 		name     string
 		starting struct {
 			groups    map[uint64][]string
-			locations [util.NumShards]uint64
+			locations []uint64
 		}
 		data struct {
 			payload    ConfigLeavePayload
@@ -259,7 +260,7 @@ func TestConfigMachineHandleLeave(t *testing.T) {
 			name: "last leave",
 			starting: struct {
 				groups    map[uint64][]string
-				locations [util.NumShards]uint64
+				locations []uint64
 			}{
 				groups:    singleGroups,
 				locations: singleGroupLocation,
@@ -283,7 +284,7 @@ func TestConfigMachineHandleLeave(t *testing.T) {
 			name: "normal leave",
 			starting: struct {
 				groups    map[uint64][]string
-				locations [util.NumShards]uint64
+				locations []uint64
 			}{
 				groups:    normalGroup,
 				locations: normalLocation,
@@ -307,7 +308,7 @@ func TestConfigMachineHandleLeave(t *testing.T) {
 			name: "non-existing group leave",
 			starting: struct {
 				groups    map[uint64][]string
-				locations [util.NumShards]uint64
+				locations []uint64
 			}{
 				groups:    normalGroup,
 				locations: normalLocation,
@@ -331,6 +332,7 @@ func TestConfigMachineHandleLeave(t *testing.T) {
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
 			machine := ConfigMachine{
+				numShards:     util.NumShards,
 				configHistory: []util.Configuration{},
 				currentConfig: util.Configuration{
 					Version:   uint64(0),
@@ -372,7 +374,7 @@ func TestConfigMachineHandleMove(t *testing.T) {
 		uint64(2): []string{"0.0.0.0"},
 		uint64(3): []string{"0.0.0.0"},
 	}
-	var normalLocation [util.NumShards]uint64
+	normalLocation := make([]uint64, util.NumShards)
 	for i := range normalLocation {
 		if i < util.NumShards/2 {
 			normalLocation[i] = uint64(1)
@@ -385,7 +387,7 @@ func TestConfigMachineHandleMove(t *testing.T) {
 		name     string
 		starting struct {
 			groups    map[uint64][]string
-			locations [util.NumShards]uint64
+			locations []uint64
 		}
 		data struct {
 			payload    ConfigMovePayload
@@ -397,7 +399,7 @@ func TestConfigMachineHandleMove(t *testing.T) {
 			name: "simple move",
 			starting: struct {
 				groups    map[uint64][]string
-				locations [util.NumShards]uint64
+				locations []uint64
 			}{
 				groups:    normalGroup,
 				locations: normalLocation,
@@ -424,7 +426,7 @@ func TestConfigMachineHandleMove(t *testing.T) {
 			name: "move to self no effect",
 			starting: struct {
 				groups    map[uint64][]string
-				locations [util.NumShards]uint64
+				locations []uint64
 			}{
 				groups:    normalGroup,
 				locations: normalLocation,
@@ -451,7 +453,7 @@ func TestConfigMachineHandleMove(t *testing.T) {
 			name: "move to non-existing gropu",
 			starting: struct {
 				groups    map[uint64][]string
-				locations [util.NumShards]uint64
+				locations []uint64
 			}{
 				groups:    normalGroup,
 				locations: normalLocation,
@@ -478,7 +480,7 @@ func TestConfigMachineHandleMove(t *testing.T) {
 			name: "move non-existing shard",
 			starting: struct {
 				groups    map[uint64][]string
-				locations [util.NumShards]uint64
+				locations []uint64
 			}{
 				groups:    normalGroup,
 				locations: normalLocation,
@@ -505,6 +507,7 @@ func TestConfigMachineHandleMove(t *testing.T) {
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
 			machine := ConfigMachine{
+				numShards:     util.NumShards,
 				configHistory: []util.Configuration{},
 				currentConfig: util.Configuration{
 					Version:   uint64(0),
@@ -546,7 +549,7 @@ func TestConfigMachineHandleQuery(t *testing.T) {
 		uint64(2): []string{"0.0.0.0"},
 		uint64(3): []string{"0.0.0.0"},
 	}
-	var normalLocation [util.NumShards]uint64
+	normalLocation := make([]uint64, util.NumShards)
 	for i := range normalLocation {
 		if i < util.NumShards/2 {
 			normalLocation[i] = uint64(1)
@@ -556,6 +559,7 @@ func TestConfigMachineHandleQuery(t *testing.T) {
 	}
 
 	machine := ConfigMachine{
+		numShards:     util.NumShards,
 		configHistory: []util.Configuration{},
 		currentConfig: util.Configuration{
 			Version:   uint64(0),
@@ -619,7 +623,7 @@ func TestConfigMachineHandleInternalQuery(t *testing.T) {
 		uint64(2): []string{"0.0.0.2"},
 		uint64(3): []string{"0.0.0.3"},
 	}
-	var normalLocation [util.NumShards]uint64
+	normalLocation := make([]uint64, util.NumShards)
 	for i := range normalLocation {
 		if i < util.NumShards/2 {
 			normalLocation[i] = uint64(1)
@@ -693,6 +697,7 @@ func TestConfigMachineHandleInternalQuery(t *testing.T) {
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
 			machine := ConfigMachine{
+				numShards:     util.NumShards,
 				configHistory: []util.Configuration{},
 				currentConfig: util.Configuration{
 					Version:   uint64(0),

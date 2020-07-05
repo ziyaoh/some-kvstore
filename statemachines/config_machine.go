@@ -26,7 +26,7 @@ type ConfigLeavePayload struct {
 }
 
 type ConfigMovePayload struct {
-	Shard     uint64
+	Shard     int
 	DestGroup uint64
 }
 
@@ -44,15 +44,17 @@ type ConfigInternalQueryPayload struct {
 // It manages sharding configuration.
 // Serves as the state machine of a shard orchestrator node.
 type ConfigMachine struct {
+	numShards     int
 	configHistory []util.Configuration
 	currentConfig util.Configuration
 }
 
 // NewConfigMachine creates a new starting ConfigMachine
-func NewConfigMachine() *ConfigMachine {
+func NewConfigMachine(numShards int) *ConfigMachine {
 	machine := ConfigMachine{
+		numShards:     numShards,
 		configHistory: make([]util.Configuration, 0),
-		currentConfig: util.NewConfiguration(),
+		currentConfig: util.NewConfiguration(numShards),
 	}
 	return &machine
 }
@@ -97,7 +99,7 @@ func (machine *ConfigMachine) GetState() interface{} {
 		}
 		hist[groupID]++
 	}
-	max, min := 0, util.NumShards
+	max, min := 0, machine.numShards
 	for _, shards := range hist {
 		if shards > max {
 			max = shards
@@ -215,7 +217,7 @@ func (machine *ConfigMachine) handleMove(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, errHelp.Wrap(err, "ConfigMachine: decoding configMovePayload fail\n")
 	}
-	if payload.Shard >= util.NumShards {
+	if payload.Shard < 0 || payload.Shard >= machine.numShards {
 		return nil, fmt.Errorf("ConfigMachine: moving non-existing shard: %d", payload.Shard)
 	}
 	if _, exist := machine.currentConfig.Groups[payload.DestGroup]; !exist {
@@ -284,7 +286,7 @@ func (machine *ConfigMachine) handleInternalQuery(data []byte) ([]byte, error) {
 	return bytes, nil
 }
 
-func getHist(locations [util.NumShards]uint64) map[uint64][]int {
+func getHist(locations []uint64) map[uint64][]int {
 	hist := make(map[uint64][]int)
 	for shard, groupID := range locations {
 		if _, exist := hist[groupID]; !exist {
