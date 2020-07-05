@@ -628,21 +628,6 @@ func TestConfigMachineHandleInternalQuery(t *testing.T) {
 		}
 	}
 
-	machine := ConfigMachine{
-		configHistory: []util.Configuration{},
-		currentConfig: util.Configuration{
-			Version:   uint64(0),
-			NumShards: util.NumShards,
-			Groups:    normalGroup,
-			Location:  normalLocation,
-		},
-	}
-	defer machine.Close()
-	moveBytes, err := util.EncodeMsgPack(ConfigMovePayload{Shard: 0, DestGroup: uint64(3)})
-	assert.Nil(t, err)
-	_, err = machine.ApplyCommand(ConfigMove, moveBytes)
-	assert.Nil(t, err)
-
 	cases := []struct {
 		name            string
 		query           ConfigInternalQueryPayload
@@ -696,11 +681,32 @@ func TestConfigMachineHandleInternalQuery(t *testing.T) {
 				SrcGroupID:   uint64(10),
 				Addrs:        []string{"0.0.0.0"},
 			},
-			expectFail: true,
+			expectFail:      false,
+			expectedVersion: uint64(1),
+			expectedGroups: map[uint64][]string{
+				uint64(1): []string{"0.0.0.1"},
+				uint64(2): []string{"0.0.0.2"},
+				uint64(3): []string{"0.0.0.3"},
+			},
 		},
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
+			machine := ConfigMachine{
+				configHistory: []util.Configuration{},
+				currentConfig: util.Configuration{
+					Version:   uint64(0),
+					NumShards: util.NumShards,
+					Groups:    normalGroup,
+					Location:  normalLocation,
+				},
+			}
+			defer machine.Close()
+			moveBytes, err := util.EncodeMsgPack(ConfigMovePayload{Shard: 0, DestGroup: uint64(3)})
+			assert.Nil(t, err)
+			_, err = machine.ApplyCommand(ConfigMove, moveBytes)
+			assert.Nil(t, err)
+
 			payloadBytes, err := util.EncodeMsgPack(testCase.query)
 			assert.Nil(t, err)
 

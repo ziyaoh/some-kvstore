@@ -259,14 +259,16 @@ func (machine *ConfigMachine) handleInternalQuery(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, errHelp.Wrap(err, "ConfigMachine: decoding configInternalQueryPayload fail\n")
 	}
-	if _, exist := machine.currentConfig.Groups[payload.SrcGroupID]; !exist {
-		return nil, fmt.Errorf("ConfigMachine: src group ID does not exist: %d", payload.SrcGroupID)
-	}
+	// if _, exist := machine.currentConfig.Groups[payload.SrcGroupID]; !exist {
+	// 	return nil, fmt.Errorf("ConfigMachine: src group ID does not exist: %d", payload.SrcGroupID)
+	// }
 	if len(payload.Addrs) == 0 {
 		return nil, fmt.Errorf("ConfigMachine: addrs of src group should not be empty")
 	}
 
-	machine.currentConfig.Groups[payload.SrcGroupID] = payload.Addrs
+	if _, exist := machine.currentConfig.Groups[payload.SrcGroupID]; exist {
+		machine.currentConfig.Groups[payload.SrcGroupID] = payload.Addrs
+	}
 
 	var config util.Configuration
 	if payload.ShardVersion < 0 || uint64(payload.ShardVersion) >= machine.currentConfig.Version {
