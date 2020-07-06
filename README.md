@@ -134,10 +134,11 @@ Commands for other replication group
         - [ ] log compaction
     - [x] client request idempotency cache and cleaning up
 - [x] redesign and refactor RPC calls flow
-- [x] single replication group
+- [ ] single replication group
     - [x] KV store as state machine
         - [x] implementation
         - [x] test
+    - [ ] shard kv machine
     - [x] integration
         - [x] replication group node
         - [x] refactor existing raft implementation
@@ -146,9 +147,9 @@ Commands for other replication group
             - [x] change to ack finished request seq
         - [x] integration tests
 - [ ] shard orchestrator
-    - [ ] configuration
-    - [ ] API
-        - [ ] rpc set up
+    - [x] configuration & config machine
+    - [x] API
+        - [x] rpc set up
     - [ ] client
         - [ ] frontend client
         - [ ] internal client
