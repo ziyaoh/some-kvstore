@@ -118,7 +118,7 @@ func (client *Client) sendRequest(command uint64, data []byte) ([]byte, error) {
 	retries := 0
 
 	for retries < MaxRetries {
-		reply, err = client.Leader.ClientRequestRPC(&request)
+		reply, err = client.Leader.ReplicationGroupClientRequestRPC(&request)
 		if err != nil {
 			return nil, err
 		}

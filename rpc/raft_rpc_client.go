@@ -156,18 +156,3 @@ func (remote *RemoteNode) RequestVoteRPC(local *RemoteNode, request *RequestVote
 	reply, err := cc.RequestVoteCaller(context.Background(), request)
 	return reply, remote.connCheck(err)
 }
-
-// TODO: move to shard master
-// RegisterClientRPC is called by a new client trying to register itself with
-// the given Raft node in the cluster.
-// func (remote *RemoteNode) RegisterClientRPC() (*RegisterClientReply, error) {
-// 	cc, err := remote.ClientConn()
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	request := RegisterClientRequest{}
-
-// 	reply, err := cc.RegisterClientCaller(context.Background(), &request)
-// 	return reply, remote.connCheck(err)
-// }

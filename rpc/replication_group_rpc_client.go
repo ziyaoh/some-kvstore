@@ -24,9 +24,9 @@ func (remote *RemoteNode) ReplicationGroupRPCClientConn() (ReplicationGroupRPCCl
 	return NewReplicationGroupRPCClient(cc), err
 }
 
-// ClientRequestRPC is executed by a client trying to make a request to the
+// ReplicationGroupClientRequestRPC is executed by a client trying to make a request to the
 // given Raft node in the cluster.
-func (remote *RemoteNode) ClientRequestRPC(request *ClientRequest) (*ClientReply, error) {
+func (remote *RemoteNode) ReplicationGroupClientRequestRPC(request *ClientRequest) (*ClientReply, error) {
 	cc, err := remote.ReplicationGroupRPCClientConn()
 	if err != nil {
 		return nil, err

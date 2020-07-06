@@ -50,12 +50,3 @@ func (local *Node) RequestVoteCaller(ctx context.Context, req *rpc.RequestVoteRe
 
 	return &reply, nil
 }
-
-// TODO: move to shard master
-// RegisterClientCaller is called through GRPC to respond to a client
-// registration request.
-// func (local *Node) RegisterClientCaller(ctx context.Context, req *RegisterClientRequest) (*RegisterClientReply, error) {
-// 	reply := local.RegisterClient(req)
-
-// 	return &reply, nil
-// }
