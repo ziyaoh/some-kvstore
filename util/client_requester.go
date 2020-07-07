@@ -68,6 +68,7 @@ func ConnectShardOrchestrator(addr string) (requester *Requester, err error) {
 			requester.ID = reply.ClientId
 			requester.Mode = ShardOrchestratorRequester
 			requester.Leader = remoteNode
+			requester.ackSeqs = make(map[uint64]bool)
 			return requester, nil
 		case rpc.ClientStatus_REQ_FAILED:
 			Out.Output(2, fmt.Sprintf("Request failed\n"))
@@ -76,7 +77,7 @@ func ConnectShardOrchestrator(addr string) (requester *Requester, err error) {
 		case rpc.ClientStatus_NOT_LEADER:
 			// The person we've contacted isn't the leader. Use their hint to find
 			// the leader.
-			if reply.LeaderHint.Addr == requester.Leader.Addr {
+			if reply.LeaderHint.Addr == remoteNode.Addr {
 				time.Sleep(200 * time.Millisecond)
 			}
 			remoteNode = reply.LeaderHint
