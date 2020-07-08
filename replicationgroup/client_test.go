@@ -51,7 +51,7 @@ func TestClientWithFailLeader(t *testing.T) {
 		AckSeqs: []uint64{uint64(0)},
 	}
 
-	client.Leader = failLeader.Self
+	client.requester.Leader = failLeader.Self
 	result, err := client.Get([]byte("key"))
 	assert.NotNil(t, err, "expect Get to error")
 	assert.Nil(t, result, "expect result to be empty")
@@ -80,7 +80,7 @@ func TestClientWithFollower(t *testing.T) {
 	leader.expected = &rpc.ClientRequest{
 		AckSeqs: []uint64{0},
 	}
-	client.Leader = follower.Self
+	client.requester.Leader = follower.Self
 	client.Get([]byte("key"))
 }
 

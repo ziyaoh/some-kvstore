@@ -21,17 +21,20 @@ service RaftRPC {
   rpc RequestVoteCaller(RequestVoteRequest) returns (RequestVoteReply) {}
 }
 
-// The service that defines what RPC calls Raft supports
+// The service that defines what RPC calls a ReplicationGroup supports
 service ReplicationGroupRPC {
   // Called by a client to make a request to a ReplicationGroup node
   rpc ClientRequestCaller(ClientRequest) returns (ClientReply) {}
 }
 
-service ShardMasterRPC {
+// The service that defines what RPC calls a ShardOrchestrator supports
+service ShardOrchestratorRPC {
   // Called by a client when it first starts up to register itself with the
   // ReplicationGroup cluster and get a unique client id.
-  rpc RegisterClientCaller(RegisterClientRequest)
-      returns (RegisterClientReply) {}
+  rpc RegisterClientCaller(RegisterClientRequest) returns (RegisterClientReply) {}
+
+  // Called by a client to make a request to a ReplicationGroup node
+  rpc ClientRequestCaller(ClientRequest) returns (ClientReply) {}
 }
 
 // Important building blocks for the following RPC requests/responses as well as
@@ -50,7 +53,7 @@ message RemoteNode {
   string id = 2;
 }
 
-// A log entry in Raft can be any of any of these four types.
+// A log entry in Raft can be any of any of these types.
 enum CommandType {
   CLIENT_REGISTRATION = 0;
   INIT = 1;

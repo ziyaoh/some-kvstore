@@ -50,3 +50,9 @@ func AddrToID(addr string, length int) string {
 	keyInt.SetBytes(v[:length])
 	return keyInt.String()
 }
+
+// KeyToShard takes in a key and returns the shard number this key belongs to
+// TODO
+func KeyToShard(key []byte) int {
+	return 0
+}
