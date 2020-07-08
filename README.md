@@ -146,13 +146,13 @@ Commands for other replication group
         - [x] client
             - [x] change to ack finished request seq
         - [x] integration tests
-- [ ] shard orchestrator
+- [x] shard orchestrator
     - [x] configuration & config machine
     - [x] API
         - [x] rpc set up
-    - [ ] client
-        - [ ] frontend client
-        - [ ] internal client
+    - [x] client
+        - [x] frontend client
+        - [x] internal client
 - [ ] integration
     - [ ] sharding replication group state machine
     - [ ] API and communication between replication groups and shard orchestrator
