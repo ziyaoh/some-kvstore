@@ -54,6 +54,7 @@ type testStep struct {
 	data                interface{}
 	expectFail          bool
 	expectConfigVersion uint64
+	expectConfigGroups  *map[uint64][]string
 }
 
 func TestOneNodeClusterBasicRequest(t *testing.T) {
@@ -152,6 +153,20 @@ func TestOneNodeClusterBasicRequest(t *testing.T) {
 			expectFail: true,
 		},
 		testStep{
+			name:      "internal query with changed group",
+			operation: statemachines.ConfigInternalQuery,
+			data: statemachines.ConfigInternalQueryPayload{
+				ShardVersion: int64(-1),
+				SrcGroupID:   uint64(1),
+				Addrs:        []string{"0.0.0.10"},
+			},
+			expectFail: false,
+			expectConfigGroups: &map[uint64][]string{
+				uint64(1): []string{"0.0.0.10"},
+				uint64(2): []string{"0.0.0.2"},
+			},
+		},
+		testStep{
 			name:      "internal query by new group",
 			operation: statemachines.ConfigInternalQuery,
 			data: statemachines.ConfigInternalQueryPayload{
@@ -211,6 +226,9 @@ func TestOneNodeClusterBasicRequest(t *testing.T) {
 					err := util.DecodeMsgPack(reply.GetResponse(), &config)
 					assert.Nil(t, err)
 					assert.Nil(t, config.Validate())
+					if step.expectConfigGroups != nil {
+						assert.Equal(t, *step.expectConfigGroups, config.Groups)
+					}
 				}
 			}
 		})

@@ -138,12 +138,16 @@ func InternalClientConnect(addr string) (*InternalClient, error) {
 func (internalClient *InternalClient) InternalQuery(shardVersion int64, srcGroupID uint64, addrs []string) (util.Configuration, error) {
 	var config util.Configuration
 
-	payload := statemachines.ConfigQueryPayload{ShardVersion: shardVersion}
+	payload := statemachines.ConfigInternalQueryPayload{
+		ShardVersion: shardVersion,
+		SrcGroupID:   srcGroupID,
+		Addrs:        addrs,
+	}
 	bytes, err := util.EncodeMsgPack(payload)
 	if err != nil {
 		return config, errHelp.Wrapf(err, "Client: Query encoding ConfigQueryPayload fail: %v\n", err)
 	}
-	resBytes, err := internalClient.requester.SendRequest(statemachines.ConfigQuery, bytes)
+	resBytes, err := internalClient.requester.SendRequest(statemachines.ConfigInternalQuery, bytes)
 	if err != nil {
 		return config, errHelp.Wrapf(err, "Admin: Quering shardVersio %d fail\n", shardVersion)
 	}

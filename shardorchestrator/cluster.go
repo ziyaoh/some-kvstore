@@ -13,7 +13,7 @@ import (
 
 // CreateLocalShardOrchestrator creates a new Raft cluster with the given config in the
 // current process.
-func CreateLocalShardOrchestrator(config *raft.Config) ([]*Node, error) {
+func CreateLocalShardOrchestrator(numShards int, config *raft.Config) ([]*Node, error) {
 	err := raft.CheckConfig(config)
 	if err != nil {
 		return nil, err
@@ -27,7 +27,7 @@ func CreateLocalShardOrchestrator(config *raft.Config) ([]*Node, error) {
 	} else {
 		stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", rand.Int())))
 	}
-	configMachine := statemachines.NewConfigMachine(util.NumShards)
+	configMachine := statemachines.NewConfigMachine(numShards)
 	if configMachine == nil {
 		panic("configMachine should not be nil")
 	}
@@ -44,7 +44,7 @@ func CreateLocalShardOrchestrator(config *raft.Config) ([]*Node, error) {
 		} else {
 			stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", rand.Int())))
 		}
-		configMachine := statemachines.NewConfigMachine(util.NumShards)
+		configMachine := statemachines.NewConfigMachine(numShards)
 		if configMachine == nil {
 			panic("configMachine should not be nil")
 		}
@@ -59,7 +59,7 @@ func CreateLocalShardOrchestrator(config *raft.Config) ([]*Node, error) {
 
 // CreateDefinedLocalShardOrchestrator creates a new Raft cluster with nodes listening at
 // the given ports in the current process.
-func CreateDefinedLocalShardOrchestrator(config *raft.Config, ports []int) ([]*Node, error) {
+func CreateDefinedLocalShardOrchestrator(numShards int, config *raft.Config, ports []int) ([]*Node, error) {
 	err := raft.CheckConfig(config)
 	if err != nil {
 		return nil, err
@@ -72,7 +72,7 @@ func CreateDefinedLocalShardOrchestrator(config *raft.Config, ports []int) ([]*N
 	} else {
 		stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", ports[0])))
 	}
-	configMachine := statemachines.NewConfigMachine(util.NumShards)
+	configMachine := statemachines.NewConfigMachine(numShards)
 	if configMachine == nil {
 		panic("configMachine should not be nil")
 	}
@@ -90,7 +90,7 @@ func CreateDefinedLocalShardOrchestrator(config *raft.Config, ports []int) ([]*N
 			stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", ports[i])))
 		}
 
-		configMachine := statemachines.NewConfigMachine(util.NumShards)
+		configMachine := statemachines.NewConfigMachine(numShards)
 		if configMachine == nil {
 			panic("configMachine should not be nil")
 		}

@@ -15,7 +15,7 @@ import (
 func TestShardOrchestratorRegisterClient(t *testing.T) {
 	util.SuppressLoggers()
 
-	nodes, err := CreateLocalShardOrchestrator(raft.DefaultConfig())
+	nodes, err := CreateLocalShardOrchestrator(numShards, raft.DefaultConfig())
 	assert.Nil(t, err)
 	defer CleanupShardOrchestrator(nodes)
 	time.Sleep(500 * time.Millisecond)
@@ -37,7 +37,7 @@ func TestShardOrchestratorRegisterClient(t *testing.T) {
 func TestShardOrchestratorClientRequests(t *testing.T) {
 	util.SuppressLoggers()
 
-	nodes, err := CreateLocalShardOrchestrator(raft.DefaultConfig())
+	nodes, err := CreateLocalShardOrchestrator(numShards, raft.DefaultConfig())
 	assert.Nil(t, err)
 	defer CleanupShardOrchestrator(nodes)
 	time.Sleep(500 * time.Millisecond)
@@ -197,7 +197,7 @@ func TestShardOrchestratorClientRequests(t *testing.T) {
 func TestReplicationGroupFollowerInteraction(t *testing.T) {
 	util.SuppressLoggers()
 
-	nodes, err := CreateLocalShardOrchestrator(raft.DefaultConfig())
+	nodes, err := CreateLocalShardOrchestrator(numShards, raft.DefaultConfig())
 	assert.Nil(t, err)
 	defer CleanupShardOrchestrator(nodes)
 	time.Sleep(500 * time.Millisecond)
@@ -234,7 +234,7 @@ func TestReplicationGroupFollowerInteraction(t *testing.T) {
 func TestReplicationGroupCandidateInteraction(t *testing.T) {
 	util.SuppressLoggers()
 
-	nodes, err := CreateLocalShardOrchestrator(raft.DefaultConfig())
+	nodes, err := CreateLocalShardOrchestrator(numShards, raft.DefaultConfig())
 	if err != nil {
 		t.Errorf("Create local replication group failed: %v\n", err)
 	}
