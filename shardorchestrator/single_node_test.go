@@ -47,6 +47,41 @@ func TestOneNodeClusterRegisterClient(t *testing.T) {
 	assert.NotEqual(t, result.ClientId, newResult.ClientId)
 }
 
+func TestOneNodeClusterRegisterClientIdempotency(t *testing.T) {
+	util.SuppressLoggers()
+
+	configMachine := statemachines.NewConfigMachine(util.NumShards)
+	config := oneNodeClusterConfig()
+	node, err := CreateNode(util.OpenPort(0), nil, config, configMachine, raft.NewMemoryStore())
+	assert.Nil(t, err)
+	defer node.GracefulExit()
+	time.Sleep(500 * time.Millisecond)
+
+	result := node.RegisterClient(&rpc.RegisterClientRequest{
+		Idempotent:    true,
+		IdempotencyID: uint64(123),
+	})
+	assert.NotNil(t, result)
+	assert.Equal(t, rpc.ClientStatus_OK, result.Status)
+
+	newResult := node.RegisterClient(&rpc.RegisterClientRequest{
+		Idempotent:    true,
+		IdempotencyID: uint64(1234),
+	})
+	assert.NotNil(t, newResult)
+	assert.Equal(t, rpc.ClientStatus_OK, newResult.Status)
+	assert.NotEqual(t, result.ClientId, newResult.ClientId)
+
+	newNewResult := node.RegisterClient(&rpc.RegisterClientRequest{
+		Idempotent:    true,
+		IdempotencyID: uint64(123),
+	})
+	assert.NotNil(t, newNewResult)
+	assert.Equal(t, rpc.ClientStatus_OK, result.Status)
+	assert.NotEqual(t, newNewResult.ClientId, newResult.ClientId)
+	assert.Equal(t, result.ClientId, newNewResult.ClientId)
+}
+
 type testStep struct {
 	name                string
 	seq                 uint64

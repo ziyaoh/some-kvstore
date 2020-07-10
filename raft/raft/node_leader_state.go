@@ -50,9 +50,10 @@ func (r *Node) doLeader() stateFunction {
 			r.handleClientRequest(request, reply)
 
 		case registerMsg := <-r.registerClient:
+			request := registerMsg.request
 			reply := registerMsg.reply
 
-			r.handleRegisterClient(reply)
+			r.handleRegisterClient(request, reply)
 
 		case voteMsg := <-r.requestVote:
 			if r.handleCompetingRequestVote(voteMsg) {
@@ -240,12 +241,17 @@ func (r *Node) handleClientRequest(request *rpc.ClientRequest, replyChannel chan
 	r.leaderMutex.Unlock()
 }
 
-func (r *Node) handleRegisterClient(replyChannel chan rpc.RegisterClientReply) {
+func (r *Node) handleRegisterClient(request *rpc.RegisterClientRequest, replyChannel chan rpc.RegisterClientReply) {
 	r.leaderMutex.Lock()
+	cacheID := ""
+	if request.Idempotent {
+		cacheID = string(request.IdempotencyID)
+	}
 	logEntry := rpc.LogEntry{
-		Index:  r.LastLogIndex() + 1,
-		TermId: r.GetCurrentTerm(),
-		Type:   rpc.CommandType_CLIENT_REGISTRATION,
+		Index:   r.LastLogIndex() + 1,
+		TermId:  r.GetCurrentTerm(),
+		Type:    rpc.CommandType_CLIENT_REGISTRATION,
+		CacheId: cacheID,
 	}
 
 	r.registrationsMutex.Lock()
@@ -277,6 +283,11 @@ func (r *Node) processLogEntry(entry rpc.LogEntry) {
 			ClientId:   entry.Index,
 			LeaderHint: r.Self,
 		}
+		// Add reply to cache
+		if entry.CacheId != "" {
+			r.CacheClientRegistration(entry.CacheId, registerReply)
+		}
+
 		r.registrationsMutex.Lock()
 		replyChan, exists := r.registrationsByLogIndex[entry.Index]
 		if exists {
