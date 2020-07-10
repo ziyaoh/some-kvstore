@@ -33,8 +33,12 @@ func TestIntegrationNormal(t *testing.T) {
 	assert.Nil(t, err)
 	client, err := ClientConnect(addr)
 	assert.Nil(t, err)
-	internalClient, err := InternalClientConnect(addr, rand.Uint64())
+	groupID := rand.Uint64()
+	internalClient, err := InternalClientConnect(addr, groupID)
 	assert.Nil(t, err)
+	newInternalClient, err := InternalClientConnect(addr, groupID)
+	assert.Nil(t, err)
+	assert.Equal(t, internalClient.requester.ID, newInternalClient.requester.ID)
 
 	cases := []struct {
 		name       string
