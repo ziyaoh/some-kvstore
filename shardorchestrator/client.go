@@ -157,3 +157,8 @@ func (internalClient *InternalClient) InternalQuery(shardVersion int64, srcGroup
 	}
 	return config, nil
 }
+
+// GetID returns the ID of current InternalClient
+func (internalClient *InternalClient) GetID() uint64 {
+	return internalClient.requester.ID
+}

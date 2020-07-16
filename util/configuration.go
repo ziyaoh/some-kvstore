@@ -44,6 +44,11 @@ func (config Configuration) NextConfig() Configuration {
 	return newConfig
 }
 
+// IsEmpty checks if current configuration is empty
+func (config Configuration) IsEmpty() bool {
+	return len(config.Groups) == 0
+}
+
 // Validate validates the config, making sure it's legal
 func (config Configuration) Validate() error {
 	if config.NumShards <= 0 {

@@ -38,6 +38,8 @@ Query API of the Shard Orchestrator returns a configuration according to version
 
 Join, Leave, Move should change the current configuration and increment the version number.
 
+If no replication group currently exists in the configuration, the shard orchestrator virtually owns all shards. When the first replication group joins, shard orchestrator pushes all shards ownership to that replication group to get things started.
+
 Client operation on a kv pair should start by querying the configuration then talk to the replication group.
 
 Replication Groups periodically query the latest configuration and transfer shard with each other.
@@ -134,11 +136,11 @@ Commands for other replication group
         - [ ] log compaction
     - [x] client request idempotency cache and cleaning up
 - [x] redesign and refactor RPC calls flow
-- [ ] single replication group
+- [x] single replication group
     - [x] KV store as state machine
         - [x] implementation
         - [x] test
-    - [ ] shard kv machine
+    - [x] shard kv machine
     - [x] integration
         - [x] replication group node
         - [x] refactor existing raft implementation
@@ -153,9 +155,9 @@ Commands for other replication group
     - [x] client
         - [x] frontend client
         - [x] internal client
-- [ ] integration
-    - [ ] sharding replication group state machine
-    - [ ] API and communication between replication groups and shard orchestrator
-    - [ ] shard transfer between replication groups
+- [x] integration
+    - [x] sharding replication group state machine
+    - [x] API and communication between replication groups and shard orchestrator
+    - [x] shard transfer between replication groups
 - [ ] persistence
 - [ ] deployment ready and demo
