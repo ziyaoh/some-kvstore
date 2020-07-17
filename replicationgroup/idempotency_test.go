@@ -169,7 +169,9 @@ func TestIdempotencyOnSameLeader(t *testing.T) {
 
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			nodes, err := CreateLocalReplicationGroup(raft.DefaultConfig())
+			groupID := uint64(1)
+			orchestrator := getMockSO(groupID)
+			nodes, err := CreateLocalReplicationGroup(groupID, raft.DefaultConfig(), orchestrator.Self.Addr)
 			if err != nil {
 				t.Errorf("Create local replication group failed: %v\n", err)
 			}
@@ -186,11 +188,17 @@ func TestIdempotencyOnSameLeader(t *testing.T) {
 				if err != nil {
 					t.Fatalf("encoding kv pair fail: %v", err)
 				}
+				payloadData := statemachines.KVStoreCommandPayload{
+					Command: step.operation,
+					Data:    data,
+				}
+				payloadBytes, err := util.EncodeMsgPack(payloadData)
+				assert.Nil(t, err)
 				request := rpc.ClientRequest{
 					ClientId:        step.clientid,
 					SequenceNum:     step.seq,
-					StateMachineCmd: step.operation,
-					Data:            data,
+					StateMachineCmd: statemachines.KVStoreCommand,
+					Data:            payloadBytes,
 				}
 				reply := leader.ClientRequest(&request)
 				reply.LeaderHint = nil
@@ -205,7 +213,9 @@ func TestIdempotencyOnSameLeader(t *testing.T) {
 func TestIdempotencyAcrossLeaders(t *testing.T) {
 	util.SuppressLoggers()
 
-	nodes, err := CreateLocalReplicationGroup(raft.DefaultConfig())
+	groupID := uint64(1)
+	orchestrator := getMockSO(groupID)
+	nodes, err := CreateLocalReplicationGroup(groupID, raft.DefaultConfig(), orchestrator.Self.Addr)
 	if err != nil {
 		t.Errorf("Create local replication group failed: %v\n", err)
 	}
@@ -223,25 +233,16 @@ func TestIdempotencyAcrossLeaders(t *testing.T) {
 		Key:   []byte("key"),
 		Value: []byte("value"),
 	}
-	data, err := util.EncodeMsgPack(pair)
 
 	clientid := rand.Uint64()
-	request := rpc.ClientRequest{
-		ClientId:        clientid,
-		SequenceNum:     uint64(0),
-		StateMachineCmd: statemachines.KVStorePut,
-		Data:            data,
-	}
-	reply := leader.ClientRequest(&request)
+	request, err := getClientRequest(clientid, uint64(0), statemachines.KVStorePut, pair)
+	assert.Nil(t, err)
+	reply := leader.ClientRequest(request)
 	assert.Equal(t, rpc.ClientStatus_OK, reply.Status, "client put request failed")
 
-	appendRequest := rpc.ClientRequest{
-		ClientId:        clientid,
-		SequenceNum:     uint64(1),
-		StateMachineCmd: statemachines.KVStoreAppend,
-		Data:            data,
-	}
-	appendReply := leader.ClientRequest(&appendRequest)
+	appendRequest, err := getClientRequest(clientid, uint64(1), statemachines.KVStoreAppend, pair)
+	assert.Nil(t, err)
+	appendReply := leader.ClientRequest(appendRequest)
 	assert.Equal(t, rpc.ClientStatus_OK, appendReply.Status, "client append request failed")
 
 	// simulate old leader partitioned before sending out result
@@ -251,16 +252,11 @@ func TestIdempotencyAcrossLeaders(t *testing.T) {
 	newLeader, err := findLeader(followers)
 	assert.Nil(t, err, "Finding new leader from local replication group fail")
 	assert.NotNil(t, leader, "Finding new leader from local replication group returns nil")
-	newAppendReply := newLeader.ClientRequest(&appendRequest)
+	newAppendReply := newLeader.ClientRequest(appendRequest)
 	assert.Equal(t, rpc.ClientStatus_OK, newAppendReply.Status, "client append request failed")
 
-	getRequest := rpc.ClientRequest{
-		ClientId:        clientid,
-		SequenceNum:     uint64(2),
-		StateMachineCmd: statemachines.KVStoreGet,
-		Data:            data,
-	}
-	getReply := newLeader.ClientRequest(&getRequest)
+	getRequest, err := getClientRequest(clientid, uint64(2), statemachines.KVStoreGet, pair)
+	getReply := newLeader.ClientRequest(getRequest)
 	assert.Equal(t, rpc.ClientStatus_OK, getReply.Status, "client get request failed")
 	assert.Equal(t, []byte("valuevalue"), getReply.Response, "value mismatch")
 }

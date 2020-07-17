@@ -9,7 +9,9 @@ import (
 )
 
 func TestConfigMachineInitialization(t *testing.T) {
-	machine := NewConfigMachine(util.NumShards)
+	kicker, err := NewTransferer(uint64(0))
+	assert.Nil(t, err)
+	machine := NewConfigMachine(util.NumShards, kicker)
 	defer machine.Close()
 
 	state := machine.GetState().(configMachineState)
@@ -54,7 +56,9 @@ func TestConfigMachineGetStateSimple(t *testing.T) {
 }
 
 func TestConfigMachineHandleUnknownCommand(t *testing.T) {
-	machine := NewConfigMachine(util.NumShards)
+	kicker, err := NewTransferer(uint64(0))
+	assert.Nil(t, err)
+	machine := NewConfigMachine(util.NumShards, kicker)
 	defer machine.Close()
 
 	res, err := machine.ApplyCommand(10, []byte{})
@@ -191,7 +195,9 @@ func TestConfigMachineHandleJoin(t *testing.T) {
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			machine := NewConfigMachine(util.NumShards)
+			kicker, err := NewTransferer(uint64(0))
+			assert.Nil(t, err)
+			machine := NewConfigMachine(util.NumShards, kicker)
 			defer machine.Close()
 
 			for _, step := range testCase.data {
@@ -331,6 +337,8 @@ func TestConfigMachineHandleLeave(t *testing.T) {
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
+			kicker, err := NewTransferer(uint64(0))
+			assert.Nil(t, err)
 			machine := ConfigMachine{
 				numShards:     util.NumShards,
 				configHistory: []util.Configuration{},
@@ -340,6 +348,7 @@ func TestConfigMachineHandleLeave(t *testing.T) {
 					Groups:    testCase.starting.groups,
 					Location:  testCase.starting.locations,
 				},
+				shardingKicker: kicker,
 			}
 			defer machine.Close()
 
@@ -506,6 +515,8 @@ func TestConfigMachineHandleMove(t *testing.T) {
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
+			kicker, err := NewTransferer(uint64(0))
+			assert.Nil(t, err)
 			machine := ConfigMachine{
 				numShards:     util.NumShards,
 				configHistory: []util.Configuration{},
@@ -515,6 +526,7 @@ func TestConfigMachineHandleMove(t *testing.T) {
 					Groups:    testCase.starting.groups,
 					Location:  testCase.starting.locations,
 				},
+				shardingKicker: kicker,
 			}
 			defer machine.Close()
 
@@ -558,6 +570,8 @@ func TestConfigMachineHandleQuery(t *testing.T) {
 		}
 	}
 
+	kicker, err := NewTransferer(uint64(0))
+	assert.Nil(t, err)
 	machine := ConfigMachine{
 		numShards:     util.NumShards,
 		configHistory: []util.Configuration{},
@@ -567,6 +581,7 @@ func TestConfigMachineHandleQuery(t *testing.T) {
 			Groups:    normalGroup,
 			Location:  normalLocation,
 		},
+		shardingKicker: kicker,
 	}
 	defer machine.Close()
 	moveBytes, err := util.EncodeMsgPack(ConfigMovePayload{Shard: 0, DestGroup: uint64(3)})
@@ -696,6 +711,8 @@ func TestConfigMachineHandleInternalQuery(t *testing.T) {
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
+			kicker, err := NewTransferer(uint64(0))
+			assert.Nil(t, err)
 			machine := ConfigMachine{
 				numShards:     util.NumShards,
 				configHistory: []util.Configuration{},
@@ -705,6 +722,7 @@ func TestConfigMachineHandleInternalQuery(t *testing.T) {
 					Groups:    normalGroup,
 					Location:  normalLocation,
 				},
+				shardingKicker: kicker,
 			}
 			defer machine.Close()
 			moveBytes, err := util.EncodeMsgPack(ConfigMovePayload{Shard: 0, DestGroup: uint64(3)})

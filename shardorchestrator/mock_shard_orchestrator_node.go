@@ -16,9 +16,10 @@ import (
 var MockError error = fmt.Errorf("Error by Mock Shard Orchestrator")
 
 func defaultRegisterClientCaller(ctx context.Context, node *MockSONode, req *rpc.RegisterClientRequest) (*rpc.RegisterClientReply, error) {
+	node.clientID++
 	return &rpc.RegisterClientReply{
 		Status:     rpc.ClientStatus_OK,
-		ClientId:   uint64(123),
+		ClientId:   node.clientID,
 		LeaderHint: node.Leader,
 	}, nil
 }
@@ -128,6 +129,8 @@ type MockSONode struct {
 	called         bool
 	RegisterClient func(ctx context.Context, node *MockSONode, req *rpc.RegisterClientRequest) (*rpc.RegisterClientReply, error)
 	ClientRequest  func(ctx context.Context, node *MockSONode, req *rpc.ClientRequest) (*rpc.ClientReply, error)
+
+	clientID uint64
 
 	// optional element, useful for asserting called in client request
 	t        *testing.T

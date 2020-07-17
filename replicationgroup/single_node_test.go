@@ -2,26 +2,29 @@ package replicationgroup
 
 import (
 	"bytes"
-	"fmt"
 	"math/rand"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/ziyaoh/some-kvstore/shardorchestrator"
 
 	"github.com/ziyaoh/some-kvstore/rpc"
 	"github.com/ziyaoh/some-kvstore/statemachines"
 
 	"github.com/ziyaoh/some-kvstore/raft/raft"
-	hashmachine "github.com/ziyaoh/some-kvstore/raft/statemachines"
 	"github.com/ziyaoh/some-kvstore/util"
 )
 
 func TestNodeCreation(t *testing.T) {
 	util.SuppressLoggers()
 
+	orchestrator := shardorchestrator.CreateDefaultMockSONode()
+
+	groupID := rand.Uint64()
 	config := oneNodeClusterConfig()
-	node, err := CreateNode(util.OpenPort(0), nil, config, new(hashmachine.HashMachine), raft.NewMemoryStore())
+	shardkv, stableStore, queryer := getDependency(config, orchestrator.Self.Addr, groupID)
+	node, err := CreateNode(groupID, util.OpenPort(0), nil, config, shardkv, stableStore, queryer)
 	if err != nil {
 		t.Errorf("Create Single Node fail: %v", err)
 	}
@@ -238,20 +241,12 @@ func TestOneNodeClusterBasic(t *testing.T) {
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
 			// set up single node cluster
-			boltPath := filepath.Join(os.TempDir(), fmt.Sprintf("kvstore_%d", rand.Int()))
-			defer os.Remove(boltPath)
-
-			kvstore, err := statemachines.NewKVStoreMachine(boltPath)
-			if err != nil {
-				t.Error(err)
-			}
-			if kvstore == nil {
-				t.Fail()
-			}
-			defer kvstore.Close()
+			orchestrator := shardorchestrator.CreateDefaultMockSONode()
 
 			config := oneNodeClusterConfig()
-			node, err := CreateNode(util.OpenPort(0), nil, config, kvstore, raft.NewMemoryStore())
+			groupID := rand.Uint64()
+			shardkv, stableStore, queryer := getDependency(config, orchestrator.Self.Addr, groupID)
+			node, err := CreateNode(groupID, util.OpenPort(0), nil, config, shardkv, stableStore, queryer)
 			if err != nil {
 				t.Errorf("Create Single Node fail: %v", err)
 			}
@@ -263,37 +258,21 @@ func TestOneNodeClusterBasic(t *testing.T) {
 
 			// steps before final test
 			for seq, step := range testCase.steps {
-				data, err := util.EncodeMsgPack(step.data)
-				if err != nil {
-					t.Fatalf("encoding kv pair fail: %v", err)
-				}
-				request := rpc.ClientRequest{
-					ClientId:        step.clientid,
-					SequenceNum:     uint64(seq),
-					StateMachineCmd: step.operation,
-					Data:            data,
-				}
-				reply := node.ClientRequest(&request)
+				request, err := getClientRequest(step.clientid, uint64(seq), step.operation, step.data)
+				assert.Nil(t, err)
+				reply := node.ClientRequest(request)
 				if reply.Status != rpc.ClientStatus_OK {
 					t.Errorf("step %d failed: %s\n", seq, reply.Status)
 				}
 			}
 
 			// final operation and verification
-			finalData, err := util.EncodeMsgPack(testCase.data)
-			if err != nil {
-				t.Fatalf("encoding kv pair fail: %v", err)
-			}
-			finalRequest := rpc.ClientRequest{
-				ClientId:        testCase.clientid,
-				SequenceNum:     uint64(len(testCase.steps)),
-				StateMachineCmd: testCase.operation,
-				Data:            finalData,
-			}
-			reply := node.ClientRequest(&finalRequest)
+			finalRequest, err := getClientRequest(testCase.clientid, uint64(len(testCase.steps)), testCase.operation, testCase.data)
+			assert.Nil(t, err)
+			reply := node.ClientRequest(finalRequest)
 			reply.LeaderHint = nil
 			if reply.Status != testCase.expected.Status || !bytes.Equal(reply.Response, testCase.expected.Response) {
-				t.Errorf("Expected reply to be %v, got %v\n", testCase.expected, reply)
+				t.Errorf("Expected reply to be %v, got %v\n", &testCase.expected, &reply)
 			}
 		})
 	}
@@ -464,20 +443,12 @@ func TestOneNodeClusterIdempotency(t *testing.T) {
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
 			// set up single node cluster
-			boltPath := filepath.Join(os.TempDir(), fmt.Sprintf("kvstore_%d", rand.Int()))
-			defer os.Remove(boltPath)
-
-			kvstore, err := statemachines.NewKVStoreMachine(boltPath)
-			if err != nil {
-				t.Error(err)
-			}
-			if kvstore == nil {
-				t.Fail()
-			}
-			defer kvstore.Close()
+			orchestrator := shardorchestrator.CreateDefaultMockSONode()
 
 			config := oneNodeClusterConfig()
-			node, err := CreateNode(util.OpenPort(0), nil, config, kvstore, raft.NewMemoryStore())
+			groupID := rand.Uint64()
+			shardkv, stableStore, queryer := getDependency(config, orchestrator.Self.Addr, groupID)
+			node, err := CreateNode(groupID, util.OpenPort(0), nil, config, shardkv, stableStore, queryer)
 			if err != nil {
 				t.Errorf("Create Single Node fail: %v", err)
 			}
@@ -489,17 +460,9 @@ func TestOneNodeClusterIdempotency(t *testing.T) {
 
 			// steps before final test
 			for _, step := range testCase.steps {
-				data, err := util.EncodeMsgPack(step.data)
-				if err != nil {
-					t.Fatalf("encoding kv pair fail: %v", err)
-				}
-				request := rpc.ClientRequest{
-					ClientId:        step.clientid,
-					SequenceNum:     step.seq,
-					StateMachineCmd: step.operation,
-					Data:            data,
-				}
-				reply := node.ClientRequest(&request)
+				request, err := getClientRequest(step.clientid, uint64(step.seq), step.operation, step.data)
+				assert.Nil(t, err)
+				reply := node.ClientRequest(request)
 				reply.LeaderHint = nil
 				if step.expected != nil && (reply.Status != step.expected.Status || !bytes.Equal(reply.Response, step.expected.Response)) {
 					t.Errorf("Expected reply to be %v, got %v\n", step.expected, &reply)

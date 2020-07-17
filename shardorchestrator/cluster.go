@@ -27,7 +27,11 @@ func CreateLocalShardOrchestrator(numShards int, config *raft.Config) ([]*Node, 
 	} else {
 		stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", rand.Int())))
 	}
-	configMachine := statemachines.NewConfigMachine(numShards)
+	kicker, err := statemachines.NewTransferer(uint64(0))
+	if err != nil {
+		panic(err)
+	}
+	configMachine := statemachines.NewConfigMachine(numShards, kicker)
 	if configMachine == nil {
 		panic("configMachine should not be nil")
 	}
@@ -44,7 +48,11 @@ func CreateLocalShardOrchestrator(numShards int, config *raft.Config) ([]*Node, 
 		} else {
 			stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", rand.Int())))
 		}
-		configMachine := statemachines.NewConfigMachine(numShards)
+		kicker, err := statemachines.NewTransferer(uint64(0))
+		if err != nil {
+			panic(err)
+		}
+		configMachine := statemachines.NewConfigMachine(numShards, kicker)
 		if configMachine == nil {
 			panic("configMachine should not be nil")
 		}
@@ -72,7 +80,11 @@ func CreateDefinedLocalShardOrchestrator(numShards int, config *raft.Config, por
 	} else {
 		stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", ports[0])))
 	}
-	configMachine := statemachines.NewConfigMachine(numShards)
+	kicker, err := statemachines.NewTransferer(uint64(0))
+	if err != nil {
+		panic(err)
+	}
+	configMachine := statemachines.NewConfigMachine(numShards, kicker)
 	if configMachine == nil {
 		panic("configMachine should not be nil")
 	}
@@ -90,7 +102,11 @@ func CreateDefinedLocalShardOrchestrator(numShards int, config *raft.Config, por
 			stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", ports[i])))
 		}
 
-		configMachine := statemachines.NewConfigMachine(numShards)
+		kicker, err := statemachines.NewTransferer(uint64(0))
+		if err != nil {
+			panic(err)
+		}
+		configMachine := statemachines.NewConfigMachine(numShards, kicker)
 		if configMachine == nil {
 			panic("configMachine should not be nil")
 		}

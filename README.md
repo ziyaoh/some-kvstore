@@ -30,6 +30,23 @@ shard orchestrator
 - join <- fe
 - leave <- fe
 
+## Idempotency Design
+
+Idempotency is achieved by clientID + request sequence number.
+
+shard orchestraor clients:
+
+- Admin: unique ID
+- Client: unique ID
+- InternalClient: unique ID
+
+replication group clients:
+
+- Client: unique ID
+- Transferer:
+    - Transferers in the same replication group should have the same ID
+    - sharding kicker Transferer in ShardOrchestrator should have ID 0
+
 ## Sharding
 
 Shard Orchestrator decides mapping between replication group and shards.

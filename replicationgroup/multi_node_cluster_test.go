@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/ziyaoh/some-kvstore/raft/raft"
 	"github.com/ziyaoh/some-kvstore/rpc"
 	"github.com/ziyaoh/some-kvstore/statemachines"
@@ -211,7 +212,9 @@ func TestReplicationGroupBasic(t *testing.T) {
 
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			nodes, err := CreateLocalReplicationGroup(raft.DefaultConfig())
+			groupID := uint64(1)
+			orchestrator := getMockSO(groupID)
+			nodes, err := CreateLocalReplicationGroup(groupID, raft.DefaultConfig(), orchestrator.Self.Addr)
 			if err != nil {
 				t.Errorf("Create local replication group failed: %v\n", err)
 			}
@@ -225,34 +228,19 @@ func TestReplicationGroupBasic(t *testing.T) {
 
 			// steps before final test
 			for seq, step := range testCase.steps {
-				data, err := util.EncodeMsgPack(step.data)
-				if err != nil {
-					t.Fatalf("encoding kv pair fail: %v", err)
-				}
-				request := rpc.ClientRequest{
-					ClientId:        step.clientid,
-					SequenceNum:     uint64(seq),
-					StateMachineCmd: step.operation,
-					Data:            data,
-				}
-				reply := leader.ClientRequest(&request)
+				request, err := getClientRequest(step.clientid, uint64(seq), step.operation, step.data)
+				assert.Nil(t, err)
+				reply := leader.ClientRequest(request)
 				if reply.Status != rpc.ClientStatus_OK {
 					t.Errorf("step %d failed: %s\n", seq, reply.Status)
 				}
 			}
 
 			// final operation and verification
-			finalData, err := util.EncodeMsgPack(testCase.data)
-			if err != nil {
-				t.Fatalf("encoding kv pair fail: %v", err)
-			}
-			finalRequest := rpc.ClientRequest{
-				ClientId:        testCase.clientid,
-				SequenceNum:     uint64(len(testCase.steps)),
-				StateMachineCmd: testCase.operation,
-				Data:            finalData,
-			}
-			reply := leader.ClientRequest(&finalRequest)
+			request, err := getClientRequest(testCase.clientid, uint64(len(testCase.steps)), testCase.operation, testCase.data)
+			assert.Nil(t, err)
+			reply := leader.ClientRequest(request)
+
 			reply.LeaderHint = nil
 			if reply.Status != testCase.expected.Status || !bytes.Equal(reply.Response, testCase.expected.Response) {
 				t.Errorf("Expected reply to be %v, got %v\n", &testCase.expected, &reply)
@@ -264,7 +252,9 @@ func TestReplicationGroupBasic(t *testing.T) {
 func TestReplicationGroupFollowerInteraction(t *testing.T) {
 	util.SuppressLoggers()
 
-	nodes, err := CreateLocalReplicationGroup(raft.DefaultConfig())
+	groupID := uint64(1)
+	orchestrator := getMockSO(groupID)
+	nodes, err := CreateLocalReplicationGroup(groupID, raft.DefaultConfig(), orchestrator.Self.Addr)
 	if err != nil {
 		t.Errorf("Create local replication group failed: %v\n", err)
 	}
@@ -307,7 +297,9 @@ func TestReplicationGroupFollowerInteraction(t *testing.T) {
 func TestReplicationGroupCandidateInteraction(t *testing.T) {
 	util.SuppressLoggers()
 
-	nodes, err := CreateLocalReplicationGroup(raft.DefaultConfig())
+	groupID := uint64(1)
+	orchestrator := getMockSO(groupID)
+	nodes, err := CreateLocalReplicationGroup(groupID, raft.DefaultConfig(), orchestrator.Self.Addr)
 	if err != nil {
 		t.Errorf("Create local replication group failed: %v\n", err)
 	}

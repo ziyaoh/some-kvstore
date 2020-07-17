@@ -14,8 +14,8 @@ const (
 )
 
 type KVStoreCommandPayload struct {
-	command uint64
-	data    []byte
+	Command uint64
+	Data    []byte
 }
 
 type ShardInPayload struct {
@@ -88,7 +88,7 @@ func (machine *ShardKVMachine) handleKVStoreCommand(command uint64, data []byte)
 	}
 
 	var kvPair KVPair
-	err = util.DecodeMsgPack(payload.data, &kvPair)
+	err = util.DecodeMsgPack(payload.Data, &kvPair)
 	if err != nil {
 		return nil, errHelp.Wrap(err, "ShardKVMachine: decode data as KVPair fail\n")
 	}
@@ -98,7 +98,7 @@ func (machine *ShardKVMachine) handleKVStoreCommand(command uint64, data []byte)
 		return nil, fmt.Errorf("ShardKVMachine: current replication group is not responsible for key %v", kvPair.Key)
 	}
 
-	return machine.kvstore.applyParsedCommand(payload.command, kvPair)
+	return machine.kvstore.applyParsedCommand(payload.Command, kvPair)
 }
 
 func (machine *ShardKVMachine) handleShardOut(data []byte) error {
