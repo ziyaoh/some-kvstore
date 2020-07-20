@@ -214,6 +214,8 @@ func TestReplicationGroupBasic(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			groupID := uint64(1)
 			orchestrator := getMockSO(groupID)
+			defer orchestrator.GracefulExit()
+
 			nodes, err := CreateLocalReplicationGroup(groupID, raft.DefaultConfig(), orchestrator.Self.Addr)
 			if err != nil {
 				t.Errorf("Create local replication group failed: %v\n", err)
@@ -254,6 +256,7 @@ func TestReplicationGroupFollowerInteraction(t *testing.T) {
 
 	groupID := uint64(1)
 	orchestrator := getMockSO(groupID)
+	defer orchestrator.GracefulExit()
 	nodes, err := CreateLocalReplicationGroup(groupID, raft.DefaultConfig(), orchestrator.Self.Addr)
 	if err != nil {
 		t.Errorf("Create local replication group failed: %v\n", err)
@@ -299,6 +302,7 @@ func TestReplicationGroupCandidateInteraction(t *testing.T) {
 
 	groupID := uint64(1)
 	orchestrator := getMockSO(groupID)
+	defer orchestrator.GracefulExit()
 	nodes, err := CreateLocalReplicationGroup(groupID, raft.DefaultConfig(), orchestrator.Self.Addr)
 	if err != nil {
 		t.Errorf("Create local replication group failed: %v\n", err)

@@ -20,6 +20,7 @@ func TestNodeCreation(t *testing.T) {
 	util.SuppressLoggers()
 
 	orchestrator := shardorchestrator.CreateDefaultMockSONode()
+	defer orchestrator.GracefulExit()
 
 	groupID := rand.Uint64()
 	config := oneNodeClusterConfig()
@@ -241,10 +242,11 @@ func TestOneNodeClusterBasic(t *testing.T) {
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
 			// set up single node cluster
-			orchestrator := shardorchestrator.CreateDefaultMockSONode()
+			groupID := rand.Uint64()
+			orchestrator := getMockSO(groupID)
+			defer orchestrator.GracefulExit()
 
 			config := oneNodeClusterConfig()
-			groupID := rand.Uint64()
 			shardkv, stableStore, queryer := getDependency(config, orchestrator.Self.Addr, groupID)
 			node, err := CreateNode(groupID, util.OpenPort(0), nil, config, shardkv, stableStore, queryer)
 			if err != nil {
@@ -443,10 +445,11 @@ func TestOneNodeClusterIdempotency(t *testing.T) {
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
 			// set up single node cluster
-			orchestrator := shardorchestrator.CreateDefaultMockSONode()
+			groupID := rand.Uint64()
+			orchestrator := getMockSO(groupID)
+			defer orchestrator.GracefulExit()
 
 			config := oneNodeClusterConfig()
-			groupID := rand.Uint64()
 			shardkv, stableStore, queryer := getDependency(config, orchestrator.Self.Addr, groupID)
 			node, err := CreateNode(groupID, util.OpenPort(0), nil, config, shardkv, stableStore, queryer)
 			if err != nil {
