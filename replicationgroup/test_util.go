@@ -6,10 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/pkg/errors"
 	"github.com/ziyaoh/some-kvstore/rpc"
 	"github.com/ziyaoh/some-kvstore/util"
-	"golang.org/x/net/context"
 
 	"github.com/ziyaoh/some-kvstore/raft/raft"
 	"github.com/ziyaoh/some-kvstore/shardorchestrator"
@@ -116,23 +114,12 @@ func getClientRequest(clientid uint64, seq uint64, operation uint64, pair statem
 
 func getMockSO(forGroup uint64) *shardorchestrator.MockSONode {
 	orchestrator := shardorchestrator.CreateDefaultMockSONode()
-	orchestrator.ClientRequest = func(ctx context.Context, node *shardorchestrator.MockSONode, req *rpc.ClientRequest) (*rpc.ClientReply, error) {
-		config := util.NewConfiguration(util.NumShards)
-		config.Groups[forGroup] = []string{}
-		for i := range config.Location {
-			config.Location[i] = forGroup
-		}
-
-		bytes, err := util.EncodeMsgPack(config)
-		if err != nil {
-			return nil, errors.Wrap(err, "MockShardOrchestrator: default client request caller encoding config fail\n")
-		}
-		return &rpc.ClientReply{
-			Status:     rpc.ClientStatus_OK,
-			Response:   bytes,
-			LeaderHint: node.Leader,
-		}, nil
+	config := util.NewConfiguration(util.NumShards)
+	config.Groups[forGroup] = []string{}
+	for i := range config.Location {
+		config.Location[i] = forGroup
 	}
+	orchestrator.CurrentConfig = config
 
 	return orchestrator
 }

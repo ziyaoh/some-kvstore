@@ -25,7 +25,7 @@ func defaultRegisterClientCaller(ctx context.Context, node *MockSONode, req *rpc
 }
 
 func defaultClientRequestCaller(ctx context.Context, node *MockSONode, req *rpc.ClientRequest) (*rpc.ClientReply, error) {
-	config := util.NewConfiguration(util.NumShards)
+	config := node.CurrentConfig
 	bytes, err := util.EncodeMsgPack(config)
 	if err != nil {
 		return nil, errors.Wrap(err, "MockShardOrchestrator: default client request caller encoding config fail\n")
@@ -127,6 +127,7 @@ type MockSONode struct {
 	Leader         *rpc.RemoteNode
 	server         *grpc.Server
 	called         bool
+	CurrentConfig  util.Configuration
 	RegisterClient func(ctx context.Context, node *MockSONode, req *rpc.RegisterClientRequest) (*rpc.RegisterClientReply, error)
 	ClientRequest  func(ctx context.Context, node *MockSONode, req *rpc.ClientRequest) (*rpc.ClientReply, error)
 
@@ -205,6 +206,7 @@ func templateMockSONode(
 			Addr: listener.Addr().String(),
 		},
 		server:         grpc.NewServer(),
+		CurrentConfig:  util.NewConfiguration(util.NumShards),
 		RegisterClient: registerCaller,
 		ClientRequest:  requestCaller,
 	}
