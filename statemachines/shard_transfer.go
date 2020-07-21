@@ -3,6 +3,7 @@ package statemachines
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	errHelp "github.com/pkg/errors"
@@ -14,6 +15,7 @@ import (
 type Transferer struct {
 	ID  uint64
 	seq uint64
+	mtx sync.Mutex
 }
 
 // NewTransferer creates a new Transferer
@@ -26,8 +28,10 @@ func NewTransferer(id uint64) (cp *Transferer, err error) {
 
 // Transfer hands off a shard to another replication group
 func (trans *Transferer) Transfer(destAddrs []string, payload ShardInPayload) error {
+	trans.mtx.Lock()
 	reqSeq := trans.seq
 	trans.seq++
+	trans.mtx.Unlock()
 
 	data, err := util.EncodeMsgPack(payload)
 	if err != nil {
