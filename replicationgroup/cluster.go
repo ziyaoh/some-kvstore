@@ -35,6 +35,34 @@ func CreateLocalReplicationGroup(groupID uint64, config *raft.Config, orchestrat
 	return nodes, nil
 }
 
+// CreateEmptyLocalReplicationGroup creates a new Raft cluster with the given config in the
+// current process.
+func CreateEmptyLocalReplicationGroup(groupID uint64, config *raft.Config, orchestrator string) ([]*Node, error) {
+	err := raft.CheckConfig(config)
+	if err != nil {
+		return nil, err
+	}
+
+	nodes := make([]*Node, config.ClusterSize)
+
+	shardkv, stableStore, queryer := getEmptyDependency(config, orchestrator, groupID)
+	nodes[0], err = CreateNode(groupID, util.OpenPort(0), nil, config, shardkv, stableStore, queryer)
+	if err != nil {
+		util.Error.Printf("Error creating first node: %v", err)
+		return nodes, err
+	}
+
+	for i := 1; i < config.ClusterSize; i++ {
+		shardkv, stableStore, queryer := getEmptyDependency(config, orchestrator, groupID)
+		nodes[i], err = CreateNode(groupID, util.OpenPort(0), nodes[0].Self, config, shardkv, stableStore, queryer)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return nodes, nil
+}
+
 // CreateDefinedLocalReplicationGroup creates a new Raft cluster with nodes listening at
 // the given ports in the current process.
 func CreateDefinedLocalReplicationGroup(config *raft.Config, ports []int, orchestrator string) ([]*Node, error) {

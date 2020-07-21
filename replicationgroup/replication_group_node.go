@@ -69,7 +69,7 @@ func (node *Node) tick() {
 	seq := uint64(0)
 	for {
 		// TODO: make this configurable
-		time.Sleep(1 * time.Second)
+		time.Sleep(500 * time.Millisecond)
 		switch node.raft.State {
 		case raft.ExitState:
 			return
@@ -95,10 +95,14 @@ func (node *Node) tick() {
 				}
 			}
 			for target, shards := range todo {
+				dest, exist := config.Groups[target]
+				if !exist {
+					dest = []string{}
+				}
 				payload := statemachines.ShardOutPayload{
 					Shards:        shards,
 					ConfigVersion: config.Version,
-					DestAddrs:     config.Groups[target],
+					DestAddrs:     dest,
 				}
 				data, err := util.EncodeMsgPack(payload)
 				if err != nil {

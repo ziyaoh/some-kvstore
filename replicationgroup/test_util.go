@@ -55,13 +55,7 @@ func findAllFollowers(nodes []*Node) ([]*Node, error) {
 	return followers, nil
 }
 
-func getDependency(config *raft.Config, orchestrator string, groupID uint64) (*statemachines.ShardKVMachine, raft.StableStore, *shardorchestrator.InternalClient) {
-	var stableStore raft.StableStore
-	if config.InMemory {
-		stableStore = raft.NewMemoryStore()
-	} else {
-		stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", rand.Int())))
-	}
+func getEmptyShardKV(groupID uint64) *statemachines.ShardKVMachine {
 	boltPath := filepath.Join(os.TempDir(), fmt.Sprintf("kvstore_%d", rand.Int()))
 	kvstore, err := statemachines.NewKVStoreMachine(boltPath)
 	if err != nil {
@@ -78,9 +72,40 @@ func getDependency(config *raft.Config, orchestrator string, groupID uint64) (*s
 	if err != nil {
 		panic(err)
 	}
+	return shardkv
+}
+
+func getPresetShardKV(groupID uint64) *statemachines.ShardKVMachine {
+	shardkv := getEmptyShardKV(groupID)
 	for shard := 0; shard < util.NumShards; shard++ {
 		shardkv.Shards.Own(shard)
 	}
+	return shardkv
+}
+
+func getDependency(config *raft.Config, orchestrator string, groupID uint64) (*statemachines.ShardKVMachine, raft.StableStore, *shardorchestrator.InternalClient) {
+	var stableStore raft.StableStore
+	if config.InMemory {
+		stableStore = raft.NewMemoryStore()
+	} else {
+		stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", rand.Int())))
+	}
+	shardkv := getPresetShardKV(groupID)
+	queryer, err := shardorchestrator.InternalClientConnect(orchestrator, groupID)
+	if err != nil {
+		panic(err)
+	}
+	return shardkv, stableStore, queryer
+}
+
+func getEmptyDependency(config *raft.Config, orchestrator string, groupID uint64) (*statemachines.ShardKVMachine, raft.StableStore, *shardorchestrator.InternalClient) {
+	var stableStore raft.StableStore
+	if config.InMemory {
+		stableStore = raft.NewMemoryStore()
+	} else {
+		stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", rand.Int())))
+	}
+	shardkv := getEmptyShardKV(groupID)
 	queryer, err := shardorchestrator.InternalClientConnect(orchestrator, groupID)
 	if err != nil {
 		panic(err)

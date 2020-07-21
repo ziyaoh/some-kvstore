@@ -71,13 +71,14 @@ func (machine *ShardKVMachine) ApplyCommand(command uint64, data []byte) ([]byte
 	case KVStoreCommand:
 		return machine.handleKVStoreCommand(command, data)
 	case ShardOut:
-		machine.handleShardOut(data)
+		err := machine.handleShardOut(data)
+		return nil, err
 	case ShardIn:
-		machine.handleShardIn(data)
+		err := machine.handleShardIn(data)
+		return nil, err
 	default:
 		return nil, fmt.Errorf("ShardKVMachine: unknown command %v", command)
 	}
-	return nil, nil
 }
 
 func (machine *ShardKVMachine) handleKVStoreCommand(command uint64, data []byte) ([]byte, error) {
@@ -115,6 +116,7 @@ func (machine *ShardKVMachine) handleShardOut(data []byte) error {
 			allData[shard] = machine.kvstore.GetShard(shard)
 			machine.kvstore.RemoveShard(shard)
 			machine.Shards.Unown(shard)
+			// fmt.Printf("shard kv unown shard %v\n", shard)
 		}
 	}
 	inPayload := ShardInPayload{
@@ -122,7 +124,9 @@ func (machine *ShardKVMachine) handleShardOut(data []byte) error {
 		Data:          allData,
 	}
 	// ignore error here, assuming that majority of each replication group always work
-	machine.trans.Transfer(outPayload.DestAddrs, inPayload)
+	if len(outPayload.DestAddrs) > 0 {
+		go machine.trans.Transfer(outPayload.DestAddrs, inPayload)
+	}
 	return nil
 }
 
