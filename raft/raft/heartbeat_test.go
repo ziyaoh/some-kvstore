@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/ziyaoh/some-kvstore/raft/statemachines"
 	"github.com/ziyaoh/some-kvstore/rpc"
 	"github.com/ziyaoh/some-kvstore/util"
 	"golang.org/x/net/context"
@@ -44,4 +46,19 @@ func TestHandleHeartbeat_Follower(t *testing.T) {
 			t.Fatal("Should've denied vote")
 		}
 	})
+}
+
+func TestLeaderSendHeartbeatsInLaggyCase(t *testing.T) {
+	util.SuppressLoggers()
+	leader, _, err := MockLaggyCluster(true, DefaultConfig(), t)
+	assert.Nil(t, err)
+
+	time.Sleep(500 * time.Millisecond)
+	request := rpc.ClientRequest{
+		ClientId:        uint64(1),
+		SequenceNum:     uint64(1),
+		StateMachineCmd: statemachines.HashChainInit,
+	}
+	leader.ClientRequest(&request)
+	time.Sleep(1 * time.Second)
 }

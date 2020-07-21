@@ -53,6 +53,15 @@ func DefaultAppendEntriesCaller(ctx context.Context, req *rpc.AppendEntriesReque
 	return reply, nil
 }
 
+// Laggy implementation. Sleep for 300ms then return true and echo the term.
+func LaggyAppendEntriesCaller(ctx context.Context, req *rpc.AppendEntriesRequest) (*rpc.AppendEntriesReply, error) {
+	time.Sleep(300 * time.Millisecond)
+	reply := &rpc.AppendEntriesReply{}
+	reply.Term = req.Term
+	reply.Success = true
+	return reply, nil
+}
+
 // Default implementation. Echoes the term and always votes positively.
 func DefaultRequestVoteCaller(ctx context.Context, req *rpc.RequestVoteRequest) (*rpc.RequestVoteReply, error) {
 	reply := &rpc.RequestVoteReply{}
@@ -142,8 +151,8 @@ func (m *MockRaft) JoinCluster() (err error) {
 	return
 }
 
-// Create a cluster from one student raft and ClusterSize-1 mock rafts, connect the mock rafts to the student one.
-func MockCluster(joinThem bool, config *Config, t *testing.T) (studentRaft *Node, mockRafts []*MockRaft, err error) {
+// Create a cluster from one student raft and ClusterSize-1 mock laggy rafts, connect the mock rafts to the student one.
+func MockLaggyCluster(joinThem bool, config *Config, t *testing.T) (studentRaft *Node, mockRafts []*MockRaft, err error) {
 	if config == nil {
 		config = DefaultConfig()
 	}
@@ -169,7 +178,7 @@ func MockCluster(joinThem bool, config *Config, t *testing.T) (studentRaft *Node
 
 	for i, _ := range mockRafts {
 		var mr *MockRaft
-		mr, err = NewDefaultMockRaft(studentRaft)
+		mr, err = NewLaggyMockRaft(studentRaft)
 		if err != nil {
 			return
 		}
@@ -248,6 +257,23 @@ func NewDefaultMockRaft(studentRaft *Node) (m *MockRaft, err error) {
 		Join:           DefaultJoinCaller,
 		StartNode:      DefaultStartNodeCaller,
 		AppendEntries:  DefaultAppendEntriesCaller,
+		RequestVote:    DefaultRequestVoteCaller,
+		RegisterClient: DefaultRegisterClientCaller,
+
+		StudentRaft: studentRaft,
+	}
+
+	err = m.init(DefaultConfig())
+
+	return
+}
+
+// Create a new mockraft with the laggy response to append entries request
+func NewLaggyMockRaft(studentRaft *Node) (m *MockRaft, err error) {
+	m = &MockRaft{
+		Join:           DefaultJoinCaller,
+		StartNode:      DefaultStartNodeCaller,
+		AppendEntries:  LaggyAppendEntriesCaller,
 		RequestVote:    DefaultRequestVoteCaller,
 		RegisterClient: DefaultRegisterClientCaller,
 

@@ -100,8 +100,10 @@ func (r *Node) sendHeartbeat(peer *rpc.RemoteNode, msg *rpc.AppendEntriesRequest
 			resultChan <- HeartbeatSuccess
 
 			r.leaderMutex.Lock()
-			numEntries := uint64(len(msg.Entries))
-			r.nextIndex[peer.GetId()] += numEntries
+			numEntries := len(msg.Entries)
+			if numEntries > 0 {
+				r.nextIndex[peer.GetId()] = msg.Entries[numEntries-1].GetIndex() + uint64(1)
+			}
 			r.matchIndex[peer.GetId()] = r.nextIndex[peer.GetId()] - 1
 			r.leaderMutex.Unlock()
 			r.tryCommit()
@@ -155,7 +157,6 @@ func (r *Node) sendHeartbeats() (fallback, sentToMajority bool) {
 	r.leaderMutex.Lock()
 	leaderCommit := r.commitIndex
 	r.leaderMutex.Unlock()
-	allLogs := r.stableStore.AllLogs()
 	resultChan := make(chan HeartbeatResult)
 	total := 0
 	for _, peer := range r.Peers {
@@ -165,15 +166,21 @@ func (r *Node) sendHeartbeats() (fallback, sentToMajority bool) {
 			r.matchIndex[peer.GetId()] = r.LastLogIndex()
 			r.leaderMutex.Unlock()
 		} else {
+			toSync := make([]*rpc.LogEntry, 0)
 			r.leaderMutex.Lock()
 			nextInd := r.nextIndex[peer.GetId()]
+			for index := nextInd; index <= r.LastLogIndex(); index++ {
+				if entry := r.GetLog(index); entry != nil {
+					toSync = append(toSync, entry)
+				}
+			}
 			r.leaderMutex.Unlock()
 			msg := rpc.AppendEntriesRequest{
 				Term:         r.GetCurrentTerm(),
 				Leader:       r.Self,
 				PrevLogIndex: nextInd - 1,
 				PrevLogTerm:  r.GetLog(nextInd - 1).GetTermId(),
-				Entries:      allLogs[nextInd:],
+				Entries:      toSync,
 				LeaderCommit: leaderCommit,
 			}
 			total++
@@ -271,7 +278,7 @@ func (r *Node) handleRegisterClient(request *rpc.RegisterClientRequest, replyCha
 // the leader. Once the entry has been applied, the leader responds to the client
 // with the result, and also caches the response.
 func (r *Node) processLogEntry(entry rpc.LogEntry) {
-	r.Out("Processing log entry: %v", entry)
+	r.Out("Processing log entry: %v", &entry)
 
 	for _, cacheID := range entry.AckCacheIds {
 		r.RemoveCachedReply(cacheID)
