@@ -45,7 +45,7 @@ func ConnectReplicationGroup(id uint64, addr string) (*Requester, error) {
 }
 
 // ConnectShardOrchestrator creates a new Requester for ShardOrchestrator and registers with the Raft node at the given address.
-func ConnectShardOrchestrator(addr string) (requester *Requester, err error) {
+func ConnectShardOrchestrator(addr string, idempotent bool, idempotencyID uint64) (requester *Requester, err error) {
 	requester = new(Requester)
 
 	// Note: we don't yet know the ID of the remoteNode, so just set it to an
@@ -55,8 +55,14 @@ func ConnectShardOrchestrator(addr string) (requester *Requester, err error) {
 	var reply *rpc.RegisterClientReply
 	retries := 0
 
+	request := rpc.RegisterClientRequest{}
+	if idempotent {
+		request.Idempotent = idempotent
+		request.IdempotencyID = idempotencyID
+	}
+
 	for retries < MaxRetries {
-		reply, err = remoteNode.RegisterClientRPC()
+		reply, err = remoteNode.RegisterClientRPC(&request)
 		if err != nil {
 			return nil, err
 		}

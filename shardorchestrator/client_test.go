@@ -1,6 +1,7 @@
 package shardorchestrator
 
 import (
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,7 +20,7 @@ func TestClientsWithNormalLeader(t *testing.T) {
 	t.Run("Client Interaction", func(t *testing.T) {
 		client, err := ClientConnect(addr)
 		assert.Nil(t, err, "Client connect to server fail")
-		assert.Equal(t, uint64(123), client.requester.ID)
+		assert.Equal(t, uint64(1), client.requester.ID)
 
 		leader.expected = &rpc.ClientRequest{
 			AckSeqs: []uint64{},
@@ -34,9 +35,9 @@ func TestClientsWithNormalLeader(t *testing.T) {
 		client.Query(int64(-1))
 	})
 	t.Run("Internal Client Interaction", func(t *testing.T) {
-		internalClient, err := InternalClientConnect(addr)
+		internalClient, err := InternalClientConnect(addr, rand.Uint64())
 		assert.Nil(t, err, "Client connect to server fail")
-		assert.Equal(t, uint64(123), internalClient.requester.ID)
+		assert.Equal(t, uint64(2), internalClient.requester.ID)
 
 		leader.expected = &rpc.ClientRequest{
 			AckSeqs: []uint64{},
@@ -53,7 +54,7 @@ func TestClientsWithNormalLeader(t *testing.T) {
 	t.Run("Admin Interaction", func(t *testing.T) {
 		admin, err := AdminConnect(addr)
 		assert.Nil(t, err, "Admin connect to server fail")
-		assert.Equal(t, uint64(123), admin.requester.ID)
+		assert.Equal(t, uint64(3), admin.requester.ID)
 
 		leader.expected = &rpc.ClientRequest{
 			AckSeqs: []uint64{},
@@ -138,7 +139,7 @@ func TestClientWithCandidate(t *testing.T) {
 	addr := candidate.Self.Addr
 	client, err := ClientConnect(addr)
 	assert.Nil(t, err, "Client connect to server fail")
-	assert.Equal(t, uint64(123), client.requester.ID)
+	assert.Equal(t, uint64(1), client.requester.ID)
 
 	candidate.expected = &rpc.ClientRequest{
 		AckSeqs: []uint64{},

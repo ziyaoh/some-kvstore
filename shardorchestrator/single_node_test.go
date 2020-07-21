@@ -29,7 +29,9 @@ func TestNodeCreation(t *testing.T) {
 func TestOneNodeClusterRegisterClient(t *testing.T) {
 	util.SuppressLoggers()
 
-	configMachine := statemachines.NewConfigMachine(util.NumShards)
+	kicker, err := statemachines.NewTransferer(uint64(0))
+	assert.Nil(t, err)
+	configMachine := statemachines.NewConfigMachine(numShards, kicker)
 	config := oneNodeClusterConfig()
 	node, err := CreateNode(util.OpenPort(0), nil, config, configMachine, raft.NewMemoryStore())
 	assert.Nil(t, err)
@@ -47,6 +49,43 @@ func TestOneNodeClusterRegisterClient(t *testing.T) {
 	assert.NotEqual(t, result.ClientId, newResult.ClientId)
 }
 
+func TestOneNodeClusterRegisterClientIdempotency(t *testing.T) {
+	util.SuppressLoggers()
+
+	kicker, err := statemachines.NewTransferer(uint64(0))
+	assert.Nil(t, err)
+	configMachine := statemachines.NewConfigMachine(numShards, kicker)
+	config := oneNodeClusterConfig()
+	node, err := CreateNode(util.OpenPort(0), nil, config, configMachine, raft.NewMemoryStore())
+	assert.Nil(t, err)
+	defer node.GracefulExit()
+	time.Sleep(500 * time.Millisecond)
+
+	result := node.RegisterClient(&rpc.RegisterClientRequest{
+		Idempotent:    true,
+		IdempotencyID: uint64(123),
+	})
+	assert.NotNil(t, result)
+	assert.Equal(t, rpc.ClientStatus_OK, result.Status)
+
+	newResult := node.RegisterClient(&rpc.RegisterClientRequest{
+		Idempotent:    true,
+		IdempotencyID: uint64(1234),
+	})
+	assert.NotNil(t, newResult)
+	assert.Equal(t, rpc.ClientStatus_OK, newResult.Status)
+	assert.NotEqual(t, result.ClientId, newResult.ClientId)
+
+	newNewResult := node.RegisterClient(&rpc.RegisterClientRequest{
+		Idempotent:    true,
+		IdempotencyID: uint64(123),
+	})
+	assert.NotNil(t, newNewResult)
+	assert.Equal(t, rpc.ClientStatus_OK, result.Status)
+	assert.NotEqual(t, newNewResult.ClientId, newResult.ClientId)
+	assert.Equal(t, result.ClientId, newNewResult.ClientId)
+}
+
 type testStep struct {
 	name                string
 	seq                 uint64
@@ -62,7 +101,9 @@ func TestOneNodeClusterBasicRequest(t *testing.T) {
 
 	numShards := 3
 
-	configMachine := statemachines.NewConfigMachine(numShards)
+	kicker, err := statemachines.NewTransferer(uint64(0))
+	assert.Nil(t, err)
+	configMachine := statemachines.NewConfigMachine(numShards, kicker)
 	config := oneNodeClusterConfig()
 	node, err := CreateNode(util.OpenPort(0), nil, config, configMachine, raft.NewMemoryStore())
 	assert.Nil(t, err)
@@ -238,7 +279,9 @@ func TestOneNodeClusterBasicRequest(t *testing.T) {
 func TestOneNodeClusterIdempotency(t *testing.T) {
 	util.SuppressLoggers()
 
-	configMachine := statemachines.NewConfigMachine(util.NumShards)
+	kicker, err := statemachines.NewTransferer(uint64(0))
+	assert.Nil(t, err)
+	configMachine := statemachines.NewConfigMachine(numShards, kicker)
 	config := oneNodeClusterConfig()
 	node, err := CreateNode(util.OpenPort(0), nil, config, configMachine, raft.NewMemoryStore())
 	assert.Nil(t, err)

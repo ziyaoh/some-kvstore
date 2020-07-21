@@ -9,7 +9,9 @@ import (
 )
 
 func TestConfigMachineInitialization(t *testing.T) {
-	machine := NewConfigMachine(util.NumShards)
+	kicker, err := NewTransferer(uint64(0))
+	assert.Nil(t, err)
+	machine := NewConfigMachine(util.NumShards, kicker)
 	defer machine.Close()
 
 	state := machine.GetState().(configMachineState)
@@ -54,7 +56,9 @@ func TestConfigMachineGetStateSimple(t *testing.T) {
 }
 
 func TestConfigMachineHandleUnknownCommand(t *testing.T) {
-	machine := NewConfigMachine(util.NumShards)
+	kicker, err := NewTransferer(uint64(0))
+	assert.Nil(t, err)
+	machine := NewConfigMachine(util.NumShards, kicker)
 	defer machine.Close()
 
 	res, err := machine.ApplyCommand(10, []byte{})
@@ -64,11 +68,23 @@ func TestConfigMachineHandleUnknownCommand(t *testing.T) {
 }
 
 func TestConfigMachineHandleJoin(t *testing.T) {
+	mockRG := getMockRG()
+	defer mockRG.GracefulExit()
+
+	expectedPayload := ShardInPayload{
+		ConfigVersion: uint64(1),
+		Data:          make(map[int][]KVPair),
+	}
+	for shard := 0; shard < util.NumShards; shard++ {
+		expectedPayload.Data[shard] = nil
+	}
+
 	cases := []struct {
 		name string
 		data []struct {
 			payload    ConfigJoinPayload
 			expectFail bool
+			expectPush *ShardInPayload
 		}
 		expected configMachineState
 	}{
@@ -77,13 +93,15 @@ func TestConfigMachineHandleJoin(t *testing.T) {
 			data: []struct {
 				payload    ConfigJoinPayload
 				expectFail bool
+				expectPush *ShardInPayload
 			}{
 				{
 					payload: ConfigJoinPayload{
 						GroupID: uint64(1),
-						Addrs:   []string{"0.0.0.0"},
+						Addrs:   []string{mockRG.Self.Addr},
 					},
 					expectFail: false,
+					expectPush: &expectedPayload,
 				},
 			},
 			expected: configMachineState{
@@ -99,6 +117,7 @@ func TestConfigMachineHandleJoin(t *testing.T) {
 			data: []struct {
 				payload    ConfigJoinPayload
 				expectFail bool
+				expectPush *ShardInPayload
 			}{
 				{
 					payload: ConfigJoinPayload{
@@ -128,6 +147,7 @@ func TestConfigMachineHandleJoin(t *testing.T) {
 			data: []struct {
 				payload    ConfigJoinPayload
 				expectFail bool
+				expectPush *ShardInPayload
 			}{
 				{
 					payload: ConfigJoinPayload{
@@ -157,6 +177,7 @@ func TestConfigMachineHandleJoin(t *testing.T) {
 			data: []struct {
 				payload    ConfigJoinPayload
 				expectFail bool
+				expectPush *ShardInPayload
 			}{
 				{
 					payload: ConfigJoinPayload{
@@ -191,10 +212,15 @@ func TestConfigMachineHandleJoin(t *testing.T) {
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			machine := NewConfigMachine(util.NumShards)
+			kicker, err := NewTransferer(uint64(0))
+			assert.Nil(t, err)
+			machine := NewConfigMachine(util.NumShards, kicker)
 			defer machine.Close()
 
 			for _, step := range testCase.data {
+				if step.expectPush != nil {
+					mockRG.expected = step.expectPush
+				}
 				payloadBytes, err := util.EncodeMsgPack(step.payload)
 				assert.Nil(t, err)
 
@@ -203,7 +229,11 @@ func TestConfigMachineHandleJoin(t *testing.T) {
 					assert.NotNil(t, err)
 				} else {
 					assert.Nil(t, err)
+					if step.expectPush != nil {
+						assert.True(t, <-mockRG.match, "ConfigMachine kick sharding payload not match")
+					}
 				}
+				mockRG.expected = nil
 			}
 
 			state := machine.GetState()
@@ -331,6 +361,8 @@ func TestConfigMachineHandleLeave(t *testing.T) {
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
+			kicker, err := NewTransferer(uint64(0))
+			assert.Nil(t, err)
 			machine := ConfigMachine{
 				numShards:     util.NumShards,
 				configHistory: []util.Configuration{},
@@ -340,6 +372,7 @@ func TestConfigMachineHandleLeave(t *testing.T) {
 					Groups:    testCase.starting.groups,
 					Location:  testCase.starting.locations,
 				},
+				shardingKicker: kicker,
 			}
 			defer machine.Close()
 
@@ -506,6 +539,8 @@ func TestConfigMachineHandleMove(t *testing.T) {
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
+			kicker, err := NewTransferer(uint64(0))
+			assert.Nil(t, err)
 			machine := ConfigMachine{
 				numShards:     util.NumShards,
 				configHistory: []util.Configuration{},
@@ -515,6 +550,7 @@ func TestConfigMachineHandleMove(t *testing.T) {
 					Groups:    testCase.starting.groups,
 					Location:  testCase.starting.locations,
 				},
+				shardingKicker: kicker,
 			}
 			defer machine.Close()
 
@@ -558,6 +594,8 @@ func TestConfigMachineHandleQuery(t *testing.T) {
 		}
 	}
 
+	kicker, err := NewTransferer(uint64(0))
+	assert.Nil(t, err)
 	machine := ConfigMachine{
 		numShards:     util.NumShards,
 		configHistory: []util.Configuration{},
@@ -567,6 +605,7 @@ func TestConfigMachineHandleQuery(t *testing.T) {
 			Groups:    normalGroup,
 			Location:  normalLocation,
 		},
+		shardingKicker: kicker,
 	}
 	defer machine.Close()
 	moveBytes, err := util.EncodeMsgPack(ConfigMovePayload{Shard: 0, DestGroup: uint64(3)})
@@ -696,6 +735,8 @@ func TestConfigMachineHandleInternalQuery(t *testing.T) {
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
+			kicker, err := NewTransferer(uint64(0))
+			assert.Nil(t, err)
 			machine := ConfigMachine{
 				numShards:     util.NumShards,
 				configHistory: []util.Configuration{},
@@ -705,6 +746,7 @@ func TestConfigMachineHandleInternalQuery(t *testing.T) {
 					Groups:    normalGroup,
 					Location:  normalLocation,
 				},
+				shardingKicker: kicker,
 			}
 			defer machine.Close()
 			moveBytes, err := util.EncodeMsgPack(ConfigMovePayload{Shard: 0, DestGroup: uint64(3)})

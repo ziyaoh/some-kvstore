@@ -47,14 +47,17 @@ type ConfigMachine struct {
 	numShards     int
 	configHistory []util.Configuration
 	currentConfig util.Configuration
+
+	shardingKicker *Transferer
 }
 
 // NewConfigMachine creates a new starting ConfigMachine
-func NewConfigMachine(numShards int) *ConfigMachine {
+func NewConfigMachine(numShards int, kicker *Transferer) *ConfigMachine {
 	machine := ConfigMachine{
-		numShards:     numShards,
-		configHistory: make([]util.Configuration, 0),
-		currentConfig: util.NewConfiguration(numShards),
+		numShards:      numShards,
+		configHistory:  make([]util.Configuration, 0),
+		currentConfig:  util.NewConfiguration(numShards),
+		shardingKicker: kicker,
 	}
 	return &machine
 }
@@ -167,9 +170,27 @@ func (machine *ConfigMachine) handleJoin(data []byte) ([]byte, error) {
 		reassign(&newConfig, hist)
 	}
 
-	machine.configHistory = append(machine.configHistory, machine.currentConfig)
+	oldConfig := machine.currentConfig
+	machine.configHistory = append(machine.configHistory, oldConfig)
 	machine.currentConfig = newConfig
+
+	if oldConfig.IsEmpty() {
+		go machine.kickSharding(payload.Addrs)
+	}
+
 	return nil, nil
+}
+
+func (machine *ConfigMachine) kickSharding(destAddrs []string) {
+	mapping := make(map[int][]KVPair)
+	for shard := 0; shard < machine.numShards; shard++ {
+		mapping[shard] = nil
+	}
+	payload := ShardInPayload{
+		ConfigVersion: machine.currentConfig.Version,
+		Data:          mapping,
+	}
+	machine.shardingKicker.Transfer(destAddrs, payload)
 }
 
 func (machine *ConfigMachine) handleLeave(data []byte) ([]byte, error) {

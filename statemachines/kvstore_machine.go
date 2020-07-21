@@ -94,7 +94,10 @@ func (store *KVStoreMachine) ApplyCommand(command uint64, data []byte) ([]byte, 
 	if err != nil {
 		return nil, err
 	}
+	return store.applyParsedCommand(command, kvPair)
+}
 
+func (store *KVStoreMachine) applyParsedCommand(command uint64, kvPair KVPair) ([]byte, error) {
 	switch command {
 	case KVStoreGet:
 		return store.handleGet(&kvPair)
@@ -164,4 +167,48 @@ func (store *KVStoreMachine) handleDelete(kvPair *KVPair) ([]byte, error) {
 		return nil
 	})
 	return nil, nil
+}
+
+// GetShard copies all key/value pairs under a shard into a slice of KVPair
+func (store *KVStoreMachine) GetShard(shard int) []KVPair {
+	result := make([]KVPair, 0)
+	store.store.View(func(tx *bolt.Tx) error {
+		bucket := getBucket(tx, []byte(dataBucketKey))
+		bucket.ForEach(func(key, value []byte) error {
+			if util.KeyToShard(key) != shard {
+				return nil
+			}
+			newKey := make([]byte, len(key))
+			copy(newKey, key)
+			newValue := make([]byte, len(value))
+			copy(newValue, value)
+			pair := KVPair{
+				Key:   newKey,
+				Value: newValue,
+			}
+			result = append(result, pair)
+			return nil
+		})
+		return nil
+	})
+	return result
+
+}
+
+// RemoveShard removes all key/value pairs under a shard
+func (store *KVStoreMachine) RemoveShard(shard int) error {
+	store.store.Update(func(tx *bolt.Tx) error {
+		bucket := getBucket(tx, []byte(dataBucketKey))
+		bucket.ForEach(func(key, value []byte) error {
+			if util.KeyToShard(key) == shard {
+				err := bucket.Delete(key)
+				if err != nil {
+					panic(err)
+				}
+			}
+			return nil
+		})
+		return nil
+	})
+	return nil
 }

@@ -24,15 +24,13 @@ func (remote *RemoteNode) ShardOrchestratorRPCClientConn() (ShardOrchestratorRPC
 
 // RegisterClientRPC is called by a new client trying to register itself with
 // the given Raft node in the cluster.
-func (remote *RemoteNode) RegisterClientRPC() (*RegisterClientReply, error) {
+func (remote *RemoteNode) RegisterClientRPC(request *RegisterClientRequest) (*RegisterClientReply, error) {
 	cc, err := remote.ShardOrchestratorRPCClientConn()
 	if err != nil {
 		return nil, err
 	}
 
-	request := RegisterClientRequest{}
-
-	reply, err := cc.RegisterClientCaller(context.Background(), &request)
+	reply, err := cc.RegisterClientCaller(context.Background(), request)
 	return reply, remote.connCheck(err)
 }
 

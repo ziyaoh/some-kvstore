@@ -140,7 +140,10 @@ func TestIntegrationNormal(t *testing.T) {
 
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			nodes, err := CreateLocalReplicationGroup(raft.DefaultConfig())
+			groupID := uint64(1)
+			orchestrator := getMockSO(groupID)
+			defer orchestrator.GracefulExit()
+			nodes, err := CreateLocalReplicationGroup(groupID, raft.DefaultConfig(), orchestrator.Self.Addr)
 			if err != nil {
 				t.Errorf("Create local replication group failed: %v\n", err)
 			}
@@ -201,7 +204,10 @@ func TestIntegrationNormal(t *testing.T) {
 func TestIntegrationOnClusterPartition(t *testing.T) {
 	util.SuppressLoggers()
 
-	nodes, err := CreateLocalReplicationGroup(raft.DefaultConfig())
+	groupID := uint64(1)
+	orchestrator := getMockSO(groupID)
+	defer orchestrator.GracefulExit()
+	nodes, err := CreateLocalReplicationGroup(groupID, raft.DefaultConfig(), orchestrator.Self.Addr)
 	if err != nil {
 		t.Errorf("Create local replication group failed: %v\n", err)
 	}

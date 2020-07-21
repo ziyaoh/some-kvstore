@@ -12,6 +12,49 @@ import (
 	"github.com/ziyaoh/some-kvstore/util"
 )
 
+func TestClientRegisterIdempotencyBasic(t *testing.T) {
+	util.SuppressLoggers()
+
+	config := DefaultConfig()
+	cluster, err := CreateLocalCluster(config)
+	defer cleanupCluster(cluster)
+	assert.Nilf(t, err, "create local raft cluster fail: %v", err)
+
+	// Wait for a leader to be elected
+	time.Sleep(time.Second * 1)
+	leader, err := findLeader(cluster)
+	assert.Nilf(t, err, "local cluster finding leader fail: %v", err)
+
+	reply := leader.RegisterClient(&rpc.RegisterClientRequest{
+		Idempotent:    true,
+		IdempotencyID: uint64(1),
+	})
+	assert.Equal(t, rpc.ClientStatus_OK, reply.Status)
+	id1 := reply.ClientId
+
+	reply = leader.RegisterClient(&rpc.RegisterClientRequest{})
+	assert.Equal(t, rpc.ClientStatus_OK, reply.Status)
+	id2 := reply.ClientId
+	assert.NotEqual(t, id1, id2)
+
+	reply = leader.RegisterClient(&rpc.RegisterClientRequest{
+		Idempotent:    true,
+		IdempotencyID: uint64(2),
+	})
+	assert.Equal(t, rpc.ClientStatus_OK, reply.Status)
+	id3 := reply.ClientId
+	assert.NotEqual(t, id1, id3)
+	assert.NotEqual(t, id2, id3)
+
+	reply = leader.RegisterClient(&rpc.RegisterClientRequest{
+		Idempotent:    true,
+		IdempotencyID: uint64(1),
+	})
+	assert.Equal(t, rpc.ClientStatus_OK, reply.Status)
+	id4 := reply.ClientId
+	assert.Equal(t, id1, id4)
+}
+
 func TestIdempotencyBasic(t *testing.T) {
 	util.SuppressLoggers()
 
@@ -68,6 +111,42 @@ func TestIdempotencyBasic(t *testing.T) {
 	assert.Equalf(t, rpc.ClientStatus_OK, addReply.Status, "client request fail: %v", addReply.Status)
 	assert.NotEqualf(t, oldResult, addReply.GetResponse(), "hash should not be the same with old result")
 	assert.NotEqualf(t, newResult, addReply.GetResponse(), "hash should not be the same with new result")
+}
+
+func TestClientRegisterIdempotencyAcrossNodes(t *testing.T) {
+	util.SuppressLoggers()
+
+	config := DefaultConfig()
+	cluster, err := CreateLocalCluster(config)
+	defer cleanupCluster(cluster)
+	assert.Nilf(t, err, "create local raft cluster fail: %v", err)
+
+	// Wait for a leader to be elected
+	time.Sleep(time.Second * 1)
+	leader, err := findLeader(cluster)
+	assert.Nilf(t, err, "local cluster finding leader fail: %v", err)
+	followers, err := findAllFollowers(cluster)
+	assert.Nilf(t, err, "local cluster finding all followers fail: %v", err)
+
+	reply := leader.RegisterClient(&rpc.RegisterClientRequest{
+		Idempotent:    true,
+		IdempotencyID: uint64(1),
+	})
+	assert.Equal(t, rpc.ClientStatus_OK, reply.Status)
+	id1 := reply.ClientId
+
+	leader.NetworkPolicy.PauseWorld(true)
+	time.Sleep(1 * time.Second)
+	newLeader, err := findLeader(followers)
+	assert.Nilf(t, err, "local cluster finding new leader fail: %v", err)
+
+	reply = newLeader.RegisterClient(&rpc.RegisterClientRequest{
+		Idempotent:    true,
+		IdempotencyID: uint64(1),
+	})
+	assert.Equal(t, rpc.ClientStatus_OK, reply.Status)
+	id2 := reply.ClientId
+	assert.Equal(t, id1, id2)
 }
 
 func TestIdempotencyAcrossNodes(t *testing.T) {

@@ -271,6 +271,11 @@ func (r *Node) RegisterClient(req *rpc.RegisterClientRequest) rpc.RegisterClient
 		}
 	}
 
+	result, exists := r.GetCachedRegistration(*req)
+	if exists {
+		return *result
+	}
+
 	// Send request down channel to be processed by current stateFunction
 	r.registerClient <- RegisterClientMsg{req, reply}
 	return <-reply

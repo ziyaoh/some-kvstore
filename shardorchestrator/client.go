@@ -16,7 +16,7 @@ type Admin struct {
 // AdminConnect creates a new Admin for ShardOrchestrator and registers with the Raft node at the given address.
 func AdminConnect(addr string) (*Admin, error) {
 	admin := new(Admin)
-	requester, err := util.ConnectShardOrchestrator(addr)
+	requester, err := util.ConnectShardOrchestrator(addr, false, uint64(0))
 	if err != nil {
 		return nil, errHelp.Wrap(err, "Client: connecting to ShardOrchestrator fail\n")
 	}
@@ -90,7 +90,7 @@ type Client struct {
 // ClientConnect creates a new Client for ShardOrchestrator and registers with the Raft node at the given address.
 func ClientConnect(addr string) (*Client, error) {
 	client := new(Client)
-	requester, err := util.ConnectShardOrchestrator(addr)
+	requester, err := util.ConnectShardOrchestrator(addr, false, uint64(0))
 	if err != nil {
 		return nil, errHelp.Wrap(err, "Client: connecting to ShardOrchestrator fail\n")
 	}
@@ -125,9 +125,9 @@ type InternalClient struct {
 }
 
 // InternalClientConnect creates a new InternalClient for ShardOrchestrator and registers with the Raft node at the given address.
-func InternalClientConnect(addr string) (*InternalClient, error) {
+func InternalClientConnect(addr string, groupID uint64) (*InternalClient, error) {
 	client := new(InternalClient)
-	requester, err := util.ConnectShardOrchestrator(addr)
+	requester, err := util.ConnectShardOrchestrator(addr, true, groupID)
 	if err != nil {
 		return nil, errHelp.Wrap(err, "Client: connecting to ShardOrchestrator fail\n")
 	}
@@ -156,4 +156,9 @@ func (internalClient *InternalClient) InternalQuery(shardVersion int64, srcGroup
 		return config, errHelp.Wrapf(err, "Admin: decoding Configuration fail\n")
 	}
 	return config, nil
+}
+
+// GetID returns the ID of current InternalClient
+func (internalClient *InternalClient) GetID() uint64 {
+	return internalClient.requester.ID
 }

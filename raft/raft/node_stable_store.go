@@ -2,6 +2,7 @@ package raft
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/ziyaoh/some-kvstore/rpc"
 	"github.com/ziyaoh/some-kvstore/util"
@@ -51,6 +52,42 @@ func (r *Node) setVotedFor(candidateID string) {
 // GetVotedFor returns the Id of the candidate that the current node voted for
 func (r *Node) GetVotedFor() string {
 	return string(r.stableStore.GetBytes([]byte("voted_for")))
+}
+
+// CacheClientRegistration caches the given register client reply with the provided ID.
+func (r *Node) CacheClientRegistration(idempotencyID string, reply rpc.RegisterClientReply) error {
+	key := []byte(fmt.Sprintf("registrationID:%v", idempotencyID))
+	if value := r.stableStore.GetBytes(key); value != nil {
+		return errors.New("registration with the same idempotencyID already exists")
+	}
+
+	bytes, err := util.EncodeMsgPack(reply)
+	if err != nil {
+		return err
+	}
+	err = r.stableStore.SetBytes(key, bytes)
+	if err != nil {
+		r.Error("Unable to flush new client registration to disk: %v", err)
+		panic(err)
+	}
+	return nil
+}
+
+// GetCachedRegistration checks if the given register client request has a cached response.
+// It returns the cached response (or nil) and a boolean indicating whether or not
+// a cached response existed.
+func (r *Node) GetCachedRegistration(registerClientReq rpc.RegisterClientRequest) (*rpc.RegisterClientReply, bool) {
+	if !registerClientReq.Idempotent {
+		return nil, false
+	}
+	key := []byte(fmt.Sprintf("registrationID:%v", string(registerClientReq.IdempotencyID)))
+
+	if value := r.stableStore.GetBytes(key); value != nil {
+		var reply rpc.RegisterClientReply
+		util.DecodeMsgPack(value, &reply)
+		return &reply, true
+	}
+	return nil, false
 }
 
 // CacheClientReply caches the given client response with the provided cache ID.

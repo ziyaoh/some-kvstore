@@ -155,7 +155,10 @@ enum ClientStatus {
 
 // Empty message represents that a client needs to send no data over to
 // register itself.
-message RegisterClientRequest {}
+message RegisterClientRequest {
+  bool idempotent = 1;
+  uint64 idempotencyID = 2;
+}
 
 message RegisterClientReply {
   // OK if state machine registered client
