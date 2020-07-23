@@ -1,7 +1,6 @@
 package shardorchestrator
 
 import (
-	"math/rand"
 	"testing"
 	"time"
 
@@ -33,12 +32,11 @@ func TestIntegrationNormal(t *testing.T) {
 	assert.Nil(t, err)
 	client, err := ClientConnect(addr)
 	assert.Nil(t, err)
-	groupID := rand.Uint64()
-	internalClient, err := InternalClientConnect(addr, groupID)
+	internalClient, err := InternalClientConnect(addr)
 	assert.Nil(t, err)
-	newInternalClient, err := InternalClientConnect(addr, groupID)
+	newInternalClient, err := InternalClientConnect(addr)
 	assert.Nil(t, err)
-	assert.Equal(t, internalClient.requester.ID, newInternalClient.requester.ID)
+	assert.NotEqual(t, internalClient.requester.ID, newInternalClient.requester.ID)
 
 	cases := []struct {
 		name       string

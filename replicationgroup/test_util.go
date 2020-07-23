@@ -91,7 +91,7 @@ func getDependency(config *raft.Config, orchestrator string, groupID uint64) (*s
 		stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", rand.Int())))
 	}
 	shardkv := getPresetShardKV(groupID)
-	queryer, err := shardorchestrator.InternalClientConnect(orchestrator, groupID)
+	queryer, err := shardorchestrator.InternalClientConnect(orchestrator)
 	if err != nil {
 		panic(err)
 	}
@@ -106,7 +106,7 @@ func getEmptyDependency(config *raft.Config, orchestrator string, groupID uint64
 		stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", rand.Int())))
 	}
 	shardkv := getEmptyShardKV(groupID)
-	queryer, err := shardorchestrator.InternalClientConnect(orchestrator, groupID)
+	queryer, err := shardorchestrator.InternalClientConnect(orchestrator)
 	if err != nil {
 		panic(err)
 	}
