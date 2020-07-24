@@ -92,6 +92,7 @@ func TestSingleReplicaGroupShardInAndOut(t *testing.T) {
 
 	t.Run("test shard out", func(t *testing.T) {
 		resChan := make(chan error)
+		mockGroup.cacheReq = map[string]bool{}
 		mockGroup.ClientRequest = func(ctx context.Context, node *MockRGNode, req *rpc.ClientRequest) (*rpc.ClientReply, error) {
 			if req.StateMachineCmd != statemachines.ShardIn {
 				resChan <- fmt.Errorf("Expecting %v but got %v", statemachines.ShardIn, req.StateMachineCmd)
@@ -110,6 +111,13 @@ func TestSingleReplicaGroupShardInAndOut(t *testing.T) {
 			}
 			if !reflect.DeepEqual(expect, payload.Data) {
 				resChan <- fmt.Errorf("expect data as %v but got %v", expect, payload.Data)
+				return defaultClientRequestCaller(ctx, node, req)
+			}
+
+			cacheID := fmt.Sprintf("%v-%v", req.ClientId, req.SequenceNum)
+			node.cacheReq[cacheID] = true
+			if len(node.cacheReq) > 1 {
+				resChan <- fmt.Errorf("got multiple requests with different ID: %v", node.cacheReq)
 				return defaultClientRequestCaller(ctx, node, req)
 			}
 

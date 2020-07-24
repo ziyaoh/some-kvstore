@@ -118,6 +118,11 @@ func (client *Client) Query(shardVersion int64) (util.Configuration, error) {
 	return config, nil
 }
 
+// GetID returns the ID of current Client
+func (client *Client) GetID() uint64 {
+	return client.requester.ID
+}
+
 // InternalClient represents a client used by replication groups, that connects
 // to a known node in the shard orchestrator to issue commands.
 type InternalClient struct {

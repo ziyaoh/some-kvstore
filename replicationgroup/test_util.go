@@ -55,7 +55,7 @@ func findAllFollowers(nodes []*Node) ([]*Node, error) {
 	return followers, nil
 }
 
-func getEmptyShardKV(groupID uint64) *statemachines.ShardKVMachine {
+func getEmptyShardKV(orchestrator string, groupID uint64) *statemachines.ShardKVMachine {
 	boltPath := filepath.Join(os.TempDir(), fmt.Sprintf("kvstore_%d", rand.Int()))
 	kvstore, err := statemachines.NewKVStoreMachine(boltPath)
 	if err != nil {
@@ -64,7 +64,7 @@ func getEmptyShardKV(groupID uint64) *statemachines.ShardKVMachine {
 	if kvstore == nil {
 		panic("kvstore should not be nil")
 	}
-	trans, err := statemachines.NewTransferer(rand.Uint64())
+	trans, err := statemachines.NewTransferer(orchestrator, groupID)
 	if err != nil {
 		panic(err)
 	}
@@ -75,8 +75,8 @@ func getEmptyShardKV(groupID uint64) *statemachines.ShardKVMachine {
 	return shardkv
 }
 
-func getPresetShardKV(groupID uint64) *statemachines.ShardKVMachine {
-	shardkv := getEmptyShardKV(groupID)
+func getPresetShardKV(orchestrator string, groupID uint64) *statemachines.ShardKVMachine {
+	shardkv := getEmptyShardKV(orchestrator, groupID)
 	for shard := 0; shard < util.NumShards; shard++ {
 		shardkv.Shards.Own(shard)
 	}
@@ -90,7 +90,7 @@ func getDependency(config *raft.Config, orchestrator string, groupID uint64) (*s
 	} else {
 		stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", rand.Int())))
 	}
-	shardkv := getPresetShardKV(groupID)
+	shardkv := getPresetShardKV(orchestrator, groupID)
 	queryer, err := shardorchestrator.InternalClientConnect(orchestrator)
 	if err != nil {
 		panic(err)
@@ -105,7 +105,7 @@ func getEmptyDependency(config *raft.Config, orchestrator string, groupID uint64
 	} else {
 		stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", rand.Int())))
 	}
-	shardkv := getEmptyShardKV(groupID)
+	shardkv := getEmptyShardKV(orchestrator, groupID)
 	queryer, err := shardorchestrator.InternalClientConnect(orchestrator)
 	if err != nil {
 		panic(err)

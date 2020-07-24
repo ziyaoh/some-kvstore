@@ -9,8 +9,7 @@ import (
 )
 
 func TestConfigMachineInitialization(t *testing.T) {
-	kicker, err := NewTransferer(uint64(0))
-	assert.Nil(t, err)
+	kicker := NewShardingKicker()
 	machine := NewConfigMachine(util.NumShards, kicker)
 	defer machine.Close()
 
@@ -56,8 +55,7 @@ func TestConfigMachineGetStateSimple(t *testing.T) {
 }
 
 func TestConfigMachineHandleUnknownCommand(t *testing.T) {
-	kicker, err := NewTransferer(uint64(0))
-	assert.Nil(t, err)
+	kicker := NewShardingKicker()
 	machine := NewConfigMachine(util.NumShards, kicker)
 	defer machine.Close()
 
@@ -212,8 +210,7 @@ func TestConfigMachineHandleJoin(t *testing.T) {
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			kicker, err := NewTransferer(uint64(0))
-			assert.Nil(t, err)
+			kicker := NewShardingKicker()
 			machine := NewConfigMachine(util.NumShards, kicker)
 			defer machine.Close()
 
@@ -361,8 +358,7 @@ func TestConfigMachineHandleLeave(t *testing.T) {
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			kicker, err := NewTransferer(uint64(0))
-			assert.Nil(t, err)
+			kicker := NewShardingKicker()
 			machine := ConfigMachine{
 				numShards:     util.NumShards,
 				configHistory: []util.Configuration{},
@@ -539,8 +535,7 @@ func TestConfigMachineHandleMove(t *testing.T) {
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			kicker, err := NewTransferer(uint64(0))
-			assert.Nil(t, err)
+			kicker := NewShardingKicker()
 			machine := ConfigMachine{
 				numShards:     util.NumShards,
 				configHistory: []util.Configuration{},
@@ -594,8 +589,7 @@ func TestConfigMachineHandleQuery(t *testing.T) {
 		}
 	}
 
-	kicker, err := NewTransferer(uint64(0))
-	assert.Nil(t, err)
+	kicker := NewShardingKicker()
 	machine := ConfigMachine{
 		numShards:     util.NumShards,
 		configHistory: []util.Configuration{},
@@ -735,8 +729,7 @@ func TestConfigMachineHandleInternalQuery(t *testing.T) {
 	}
 	for _, testCase := range cases {
 		t.Run(testCase.name, func(t *testing.T) {
-			kicker, err := NewTransferer(uint64(0))
-			assert.Nil(t, err)
+			kicker := NewShardingKicker()
 			machine := ConfigMachine{
 				numShards:     util.NumShards,
 				configHistory: []util.Configuration{},

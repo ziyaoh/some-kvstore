@@ -36,16 +36,16 @@ Idempotency is achieved by clientID + request sequence number.
 
 shard orchestraor clients:
 
-- Admin: unique ID
-- Client: unique ID
-- InternalClient: unique ID
+- Admin: unique ID, registered
+- Client: unique ID, registered
+- InternalClient: unique ID, registered
 
 replication group clients:
 
-- Client: unique ID
+- Client: same ID as corresponding shard orch client, passed in
 - Transferer:
-    - Transferers in the same replication group should have the same ID
-    - sharding kicker Transferer in ShardOrchestrator should have ID 0
+    - Transferers in the same replication group should have the same ID, registered idempotently using groupID as idempotencyID
+    - sharding kicker Transferer in ShardOrchestrator should have ID 0, default
 
 ## Sharding
 

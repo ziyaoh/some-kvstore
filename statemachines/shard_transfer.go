@@ -11,6 +11,8 @@ import (
 	"github.com/ziyaoh/some-kvstore/util"
 )
 
+const DefaultShardingKickerID = uint64(0)
+
 // Transferer represents a client that's responsible for transfering shards of kv pairs to another replication group
 type Transferer struct {
 	ID  uint64
@@ -19,11 +21,23 @@ type Transferer struct {
 }
 
 // NewTransferer creates a new Transferer
-func NewTransferer(id uint64) (cp *Transferer, err error) {
+func NewTransferer(orchAddr string, groupID uint64) (cp *Transferer, err error) {
+	id, _, err := util.RegisterClient(orchAddr, true, groupID)
+	if err != nil {
+		return nil, errHelp.Wrap(err, "NewTransferer: register for client ID failed\n")
+	}
 	cp = new(Transferer)
 	cp.ID = id
 
 	return cp, nil
+}
+
+// NewShardingKicker creates a new Transferer with default ID 0
+func NewShardingKicker() *Transferer {
+	cp := new(Transferer)
+	cp.ID = DefaultShardingKickerID
+
+	return cp
 }
 
 // Transfer hands off a shard to another replication group

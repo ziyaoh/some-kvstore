@@ -27,7 +27,7 @@ func CreateLocalShardOrchestrator(numShards int, config *raft.Config) ([]*Node, 
 	} else {
 		stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", rand.Int())))
 	}
-	kicker, err := statemachines.NewTransferer(uint64(0))
+	kicker := statemachines.NewShardingKicker()
 	if err != nil {
 		panic(err)
 	}
@@ -48,7 +48,7 @@ func CreateLocalShardOrchestrator(numShards int, config *raft.Config) ([]*Node, 
 		} else {
 			stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", rand.Int())))
 		}
-		kicker, err := statemachines.NewTransferer(uint64(0))
+		kicker := statemachines.NewShardingKicker()
 		if err != nil {
 			panic(err)
 		}
@@ -80,7 +80,7 @@ func CreateDefinedLocalShardOrchestrator(numShards int, config *raft.Config, por
 	} else {
 		stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", ports[0])))
 	}
-	kicker, err := statemachines.NewTransferer(uint64(0))
+	kicker := statemachines.NewShardingKicker()
 	if err != nil {
 		panic(err)
 	}
@@ -102,10 +102,7 @@ func CreateDefinedLocalShardOrchestrator(numShards int, config *raft.Config, por
 			stableStore = raft.NewBoltStore(filepath.Join(config.LogPath, fmt.Sprintf("raft%d", ports[i])))
 		}
 
-		kicker, err := statemachines.NewTransferer(uint64(0))
-		if err != nil {
-			panic(err)
-		}
+		kicker := statemachines.NewShardingKicker()
 		configMachine := statemachines.NewConfigMachine(numShards, kicker)
 		if configMachine == nil {
 			panic("configMachine should not be nil")

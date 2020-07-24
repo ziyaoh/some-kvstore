@@ -67,6 +67,10 @@ func RegisterClient(orchAddr string, idempotent bool, idempotencyID uint64) (uin
 	retries := 0
 
 	request := rpc.RegisterClientRequest{}
+	if idempotent {
+		request.Idempotent = idempotent
+		request.IdempotencyID = idempotencyID
+	}
 
 	for retries < MaxRetries {
 		reply, err := remoteNode.RegisterClientRPC(&request)

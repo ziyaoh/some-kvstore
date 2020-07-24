@@ -16,10 +16,20 @@ import (
 var MockError error = fmt.Errorf("Error by Mock Shard Orchestrator")
 
 func defaultRegisterClientCaller(ctx context.Context, node *MockSONode, req *rpc.RegisterClientRequest) (*rpc.RegisterClientReply, error) {
-	node.clientID++
+	var id uint64
+	if req.Idempotent {
+		if _, exist := node.clientIDCache[req.IdempotencyID]; !exist {
+			node.clientID++
+			node.clientIDCache[req.IdempotencyID] = node.clientID
+		}
+		id = node.clientIDCache[req.IdempotencyID]
+	} else {
+		node.clientID++
+		id = node.clientID
+	}
 	return &rpc.RegisterClientReply{
 		Status:     rpc.ClientStatus_OK,
-		ClientId:   node.clientID,
+		ClientId:   id,
 		LeaderHint: node.Leader,
 	}, nil
 }
@@ -131,7 +141,8 @@ type MockSONode struct {
 	RegisterClient func(ctx context.Context, node *MockSONode, req *rpc.RegisterClientRequest) (*rpc.RegisterClientReply, error)
 	ClientRequest  func(ctx context.Context, node *MockSONode, req *rpc.ClientRequest) (*rpc.ClientReply, error)
 
-	clientID uint64
+	clientID      uint64
+	clientIDCache map[uint64]uint64
 
 	// optional element, useful for asserting called in client request
 	t        *testing.T
@@ -209,6 +220,8 @@ func templateMockSONode(
 		CurrentConfig:  util.NewConfiguration(util.NumShards),
 		RegisterClient: registerCaller,
 		ClientRequest:  requestCaller,
+
+		clientIDCache: map[uint64]uint64{},
 	}
 	rpc.RegisterShardOrchestratorRPCServer(node.server, node)
 	go node.server.Serve(listener)
