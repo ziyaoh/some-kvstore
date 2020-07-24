@@ -8,7 +8,7 @@ import (
 )
 
 // CreateLocalReplicationGroup creates a new Raft cluster with the given config in the
-// current process.
+// current process. Default to own all shards.
 func CreateLocalReplicationGroup(groupID uint64, config *raft.Config, orchestrator string) ([]*Node, error) {
 	err := raft.CheckConfig(config)
 	if err != nil {
@@ -36,7 +36,7 @@ func CreateLocalReplicationGroup(groupID uint64, config *raft.Config, orchestrat
 }
 
 // CreateEmptyLocalReplicationGroup creates a new Raft cluster with the given config in the
-// current process.
+// current process. Default to own no shard.
 func CreateEmptyLocalReplicationGroup(groupID uint64, config *raft.Config, orchestrator string) ([]*Node, error) {
 	err := raft.CheckConfig(config)
 	if err != nil {

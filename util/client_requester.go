@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	errHelp "github.com/pkg/errors"
 	"github.com/ziyaoh/some-kvstore/rpc"
 )
 
@@ -45,14 +46,24 @@ func ConnectReplicationGroup(id uint64, addr string) (*Requester, error) {
 }
 
 // ConnectShardOrchestrator creates a new Requester for ShardOrchestrator and registers with the Raft node at the given address.
-func ConnectShardOrchestrator(addr string, idempotent bool, idempotencyID uint64) (requester *Requester, err error) {
+func ConnectShardOrchestrator(addr string) (requester *Requester, err error) {
+	id, leaderNode, err := RegisterClient(addr, false, uint64(0))
+	if err != nil {
+		return nil, errHelp.Wrap(err, "ConnectShardOrchestrator: register client ID fail\n")
+	}
 	requester = new(Requester)
+	requester.ID = id
+	requester.Mode = ShardOrchestratorRequester
+	requester.Leader = leaderNode
+	requester.ackSeqs = make(map[uint64]bool)
+	return requester, nil
+}
 
+func RegisterClient(orchAddr string, idempotent bool, idempotencyID uint64) (uint64, *rpc.RemoteNode, error) {
 	// Note: we don't yet know the ID of the remoteNode, so just set it to an
 	// empty string.
-	remoteNode := &rpc.RemoteNode{Id: "", Addr: addr}
+	remoteNode := &rpc.RemoteNode{Id: "", Addr: orchAddr}
 
-	var reply *rpc.RegisterClientReply
 	retries := 0
 
 	request := rpc.RegisterClientRequest{}
@@ -62,20 +73,16 @@ func ConnectShardOrchestrator(addr string, idempotent bool, idempotencyID uint64
 	}
 
 	for retries < MaxRetries {
-		reply, err = remoteNode.RegisterClientRPC(&request)
+		reply, err := remoteNode.RegisterClientRPC(&request)
 		if err != nil {
-			return nil, err
+			return uint64(0), nil, err
 		}
 
 		switch reply.Status {
 		case rpc.ClientStatus_OK:
-			Out.Output(2, fmt.Sprintf("%v is the leader\n", requester.Leader))
+			Out.Output(2, fmt.Sprintf("%v is the leader\n", remoteNode))
 			Out.Output(2, fmt.Sprintf("Register returned ID \"%v\"\n", reply.ClientId))
-			requester.ID = reply.ClientId
-			requester.Mode = ShardOrchestratorRequester
-			requester.Leader = remoteNode
-			requester.ackSeqs = make(map[uint64]bool)
-			return requester, nil
+			return reply.ClientId, remoteNode, nil
 		case rpc.ClientStatus_REQ_FAILED:
 			Out.Output(2, fmt.Sprintf("Request failed\n"))
 			Out.Output(2, "Retrying...\n")
@@ -93,11 +100,11 @@ func ConnectShardOrchestrator(addr string, idempotent bool, idempotencyID uint64
 			remoteNode = reply.LeaderHint
 			time.Sleep(time.Millisecond * 200)
 		case rpc.ClientStatus_CLUSTER_NOT_STARTED:
-			return nil, errors.New("cluster hasn't started")
+			return uint64(0), nil, errors.New("cluster hasn't started")
 		}
 	}
 
-	return nil, errors.New("request failed")
+	return uint64(0), nil, errors.New("request failed")
 }
 
 // SendRequest sends a command the associated data to the last known leader of

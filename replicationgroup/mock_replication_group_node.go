@@ -72,6 +72,8 @@ type MockRGNode struct {
 	called        bool
 	ClientRequest func(ctx context.Context, node *MockRGNode, req *rpc.ClientRequest) (*rpc.ClientReply, error)
 
+	cacheReq map[string]bool
+
 	// optional element, useful for asserting called in client request
 	t        *testing.T
 	expected *rpc.ClientRequest
@@ -139,6 +141,7 @@ func templateMockRGNode(caller func(ctx context.Context, node *MockRGNode, req *
 		},
 		server:        grpc.NewServer(),
 		ClientRequest: caller,
+		cacheReq:      map[string]bool{},
 	}
 	rpc.RegisterReplicationGroupRPCServer(node.server, node)
 	go node.server.Serve(listener)

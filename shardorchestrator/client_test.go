@@ -1,7 +1,6 @@
 package shardorchestrator
 
 import (
-	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,7 +34,7 @@ func TestClientsWithNormalLeader(t *testing.T) {
 		client.Query(int64(-1))
 	})
 	t.Run("Internal Client Interaction", func(t *testing.T) {
-		internalClient, err := InternalClientConnect(addr, rand.Uint64())
+		internalClient, err := InternalClientConnect(addr)
 		assert.Nil(t, err, "Client connect to server fail")
 		assert.Equal(t, uint64(2), internalClient.requester.ID)
 

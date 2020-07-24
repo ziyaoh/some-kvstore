@@ -16,7 +16,7 @@ type Admin struct {
 // AdminConnect creates a new Admin for ShardOrchestrator and registers with the Raft node at the given address.
 func AdminConnect(addr string) (*Admin, error) {
 	admin := new(Admin)
-	requester, err := util.ConnectShardOrchestrator(addr, false, uint64(0))
+	requester, err := util.ConnectShardOrchestrator(addr)
 	if err != nil {
 		return nil, errHelp.Wrap(err, "Client: connecting to ShardOrchestrator fail\n")
 	}
@@ -90,7 +90,7 @@ type Client struct {
 // ClientConnect creates a new Client for ShardOrchestrator and registers with the Raft node at the given address.
 func ClientConnect(addr string) (*Client, error) {
 	client := new(Client)
-	requester, err := util.ConnectShardOrchestrator(addr, false, uint64(0))
+	requester, err := util.ConnectShardOrchestrator(addr)
 	if err != nil {
 		return nil, errHelp.Wrap(err, "Client: connecting to ShardOrchestrator fail\n")
 	}
@@ -118,6 +118,11 @@ func (client *Client) Query(shardVersion int64) (util.Configuration, error) {
 	return config, nil
 }
 
+// GetID returns the ID of current Client
+func (client *Client) GetID() uint64 {
+	return client.requester.ID
+}
+
 // InternalClient represents a client used by replication groups, that connects
 // to a known node in the shard orchestrator to issue commands.
 type InternalClient struct {
@@ -125,9 +130,9 @@ type InternalClient struct {
 }
 
 // InternalClientConnect creates a new InternalClient for ShardOrchestrator and registers with the Raft node at the given address.
-func InternalClientConnect(addr string, groupID uint64) (*InternalClient, error) {
+func InternalClientConnect(addr string) (*InternalClient, error) {
 	client := new(InternalClient)
-	requester, err := util.ConnectShardOrchestrator(addr, true, groupID)
+	requester, err := util.ConnectShardOrchestrator(addr)
 	if err != nil {
 		return nil, errHelp.Wrap(err, "Client: connecting to ShardOrchestrator fail\n")
 	}
@@ -135,6 +140,7 @@ func InternalClientConnect(addr string, groupID uint64) (*InternalClient, error)
 
 	return client, nil
 }
+
 func (internalClient *InternalClient) InternalQuery(shardVersion int64, srcGroupID uint64, addrs []string) (util.Configuration, error) {
 	var config util.Configuration
 
